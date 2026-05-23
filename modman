@@ -1,0 +1,6 @@
+app/code/community/UltraDev/MercadoPago        app/code/community/UltraDev/MercadoPago
+app/etc/modules/UltraDev_MercadoPago.xml       app/etc/modules/UltraDev_MercadoPago.xml
+app/design/frontend/base/default/layout/ultradev_mercadopago.xml    app/design/frontend/base/default/layout/ultradev_mercadopago.xml
+app/design/frontend/base/default/template/ultradev/mercadopago      app/design/frontend/base/default/template/ultradev/mercadopago
+app/design/adminhtml/default/default/template/ultradev/mercadopago  app/design/adminhtml/default/default/template/ultradev/mercadopago
+skin/frontend/base/default/ultradev/mercadopago                     skin/frontend/base/default/ultradev/mercadopago
