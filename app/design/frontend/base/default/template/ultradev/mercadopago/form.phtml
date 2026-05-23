@@ -1,0 +1,165 @@
+<?php
+/** @var UltraDev_MercadoPago_Block_Form $this */
+$_code      = $this->getMethodCode();
+$publicKey  = $this->getPublicKey();
+$isSandbox  = $this->isSandbox() ? 'true' : 'false';
+$amount     = $this->getGrandTotal();
+$installUrl = $this->getInstallmentsUrl();
+$statusUrl  = Mage::getUrl('ultradevmp/threeds/status', ['_secure' => true]);
+$docTypes   = $this->getDocumentTypes();
+?>
+
+<?php /* Carrega MP SDK v2 */ ?>
+<script src="https://sdk.mercadopago.com/js/v2"></script>
+
+<div id="ultradev-mp-form">
+
+  <?php /* ── Tabs ── */ ?>
+  <ul class="ump-tabs">
+    <li class="ump-tab ump-tab--active" data-submethod="cc">
+      💳 Cartão de Crédito
+    </li>
+    <li class="ump-tab" data-submethod="pix">
+      🔑 Pix
+    </li>
+    <li class="ump-tab" data-submethod="boleto">
+      📄 Boleto
+    </li>
+    <li class="ump-tab" data-submethod="checkout_pro">
+      🛒 Todas as formas
+    </li>
+  </ul>
+
+  <?php /* ── PAINEL CC ── */ ?>
+  <div class="ump-panel" data-panel="cc">
+    <form id="ump-cardform" autocomplete="off">
+
+      <div class="ump-field">
+        <label>Número do Cartão</label>
+        <div id="ump-cardNumber" class="ump-secure-field"></div>
+      </div>
+
+      <div class="ump-row">
+        <div class="ump-field ump-col-50">
+          <label>Validade (mês)</label>
+          <div id="ump-cardExpMonth" class="ump-secure-field"></div>
+        </div>
+        <div class="ump-field ump-col-50">
+          <label>Validade (ano)</label>
+          <div id="ump-cardExpYear" class="ump-secure-field"></div>
+        </div>
+      </div>
+
+      <div class="ump-row">
+        <div class="ump-field ump-col-60">
+          <label>Nome no Cartão</label>
+          <div id="ump-cardholderName" class="ump-secure-field"></div>
+        </div>
+        <div class="ump-field ump-col-40">
+          <label>CVV</label>
+          <div id="ump-securityCode" class="ump-secure-field"></div>
+        </div>
+      </div>
+
+      <div class="ump-row ump-field">
+        <label>Parcelas</label>
+        <select id="ump-installments-select" class="ump-select">
+          <option value="">Selecione as parcelas</option>
+        </select>
+      </div>
+
+      <div class="ump-row">
+        <div class="ump-field ump-col-35">
+          <label>Tipo de Documento</label>
+          <select id="ump-doc-type-select" class="ump-select"></select>
+        </div>
+        <div class="ump-field ump-col-65">
+          <label>CPF / CNPJ</label>
+          <div id="ump-doc-number-input" class="ump-secure-field"></div>
+        </div>
+      </div>
+
+      <div class="ump-field" style="display:none">
+        <label>Emissor</label>
+        <select id="ump-issuer-select"></select>
+      </div>
+
+      <img id="ump-card-brand" src="" style="display:none; height:24px; float:right; margin-top:-40px"/>
+
+    </form>
+  </div><!-- /painel CC -->
+
+  <?php /* ── PAINEL PIX ── */ ?>
+  <div class="ump-panel" data-panel="pix" style="display:none">
+    <p>Você receberá um <strong>QR Code</strong> na próxima tela para pagar via Pix. O pedido é confirmado em segundos.</p>
+    <div class="ump-row">
+      <div class="ump-field ump-col-35">
+        <label>Tipo de Documento</label>
+        <select id="ump-pix-doc_type" class="ump-select">
+          <?php foreach ($docTypes as $dt): ?>
+            <option value="<?php echo $dt['id'] ?>"><?php echo $dt['name'] ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="ump-field ump-col-65">
+        <label>CPF / CNPJ</label>
+        <input type="text" id="ump-pix-doc_number" class="ump-input" placeholder="000.000.000-00" maxlength="18"/>
+      </div>
+    </div>
+  </div><!-- /painel PIX -->
+
+  <?php /* ── PAINEL BOLETO ── */ ?>
+  <div class="ump-panel" data-panel="boleto" style="display:none">
+    <p>Gere um <strong>Boleto Bancário</strong>. O prazo de compensação é de 1 a 3 dias úteis.</p>
+    <div class="ump-row">
+      <div class="ump-field ump-col-35">
+        <label>Tipo de Documento</label>
+        <select id="ump-boleto-doc_type" class="ump-select">
+          <?php foreach ($docTypes as $dt): ?>
+            <option value="<?php echo $dt['id'] ?>"><?php echo $dt['name'] ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="ump-field ump-col-65">
+        <label>CPF / CNPJ</label>
+        <input type="text" id="ump-boleto-doc_number" class="ump-input" placeholder="000.000.000-00" maxlength="18"/>
+      </div>
+    </div>
+  </div><!-- /painel BOLETO -->
+
+  <?php /* ── PAINEL CHECKOUT PRO ── */ ?>
+  <div class="ump-panel" data-panel="checkout_pro" style="display:none">
+    <p>Pague com <strong>cartão de débito, boleto, Pix ou outras formas</strong> diretamente no ambiente seguro do MercadoPago.</p>
+  </div>
+
+  <?php /* ── Feedback ── */ ?>
+  <div id="ump-error-box" class="ump-error" style="display:none"></div>
+  <div id="ump-loading-box" class="ump-loading" style="display:none">Processando...</div>
+
+  <?php /* ── Campos hidden — enviados no form do checkout ── */ ?>
+  <input type="hidden" id="ump-mp_submethod"        name="payment[<?php echo $_code ?>][mp_submethod]"        value="cc"/>
+  <input type="hidden" id="ump-token"               name="payment[<?php echo $_code ?>][token]"               value=""/>
+  <input type="hidden" id="ump-payment_method_id"   name="payment[<?php echo $_code ?>][payment_method_id]"   value=""/>
+  <input type="hidden" id="ump-installments"        name="payment[<?php echo $_code ?>][installments]"        value="1"/>
+  <input type="hidden" id="ump-issuer_id"           name="payment[<?php echo $_code ?>][issuer_id]"           value=""/>
+  <input type="hidden" id="ump-cardholderName"      name="payment[<?php echo $_code ?>][cardholderName]"      value=""/>
+  <input type="hidden" id="ump-trunc_card"          name="payment[<?php echo $_code ?>][trunc_card]"          value=""/>
+  <input type="hidden" id="ump-doc_type"            name="payment[<?php echo $_code ?>][doc_type]"            value="CPF"/>
+  <input type="hidden" id="ump-doc_number"          name="payment[<?php echo $_code ?>][doc_number]"          value=""/>
+  <input type="hidden" id="ump-mp_device_session_id" name="payment[<?php echo $_code ?>][mp_device_session_id]" value=""/>
+
+</div><!-- /ultradev-mp-form -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    UltraDevMP.init({
+        publicKey:       '<?php echo $publicKey ?>',
+        siteId:          'MLB',
+        amount:          <?php echo (float) $amount ?>,
+        installmentsUrl: '<?php echo $installUrl ?>',
+        statusUrl:       '<?php echo $statusUrl ?>',
+        methodCode:      '<?php echo $_code ?>',
+        isSandbox:       <?php echo $isSandbox ?>
+    });
+});
+</script>
