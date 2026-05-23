@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<layout>
+    <!-- Challenge 3DS -->
+    <ultradev_mercadopago_threeds_challenge>
+        <update handle="page_empty"/>
+        <reference name="root">
+            <block type="core/template" name="ultradev.mp.threeds.challenge"
+                   template="ultradev/mercadopago/threeds/challenge.phtml"/>
+        </reference>
+    </ultradev_mercadopago_threeds_challenge>
+
+    <!-- Página de sucesso: injeta bloco de Pix/Boleto se necessário -->
+    <checkout_onepage_success>
+        <reference name="content">
+            <block type="core/template" name="ultradev.mp.success"
+                   template="ultradev/mercadopago/success/index.phtml"/>
+        </reference>
+    </checkout_onepage_success>
+</layout>
