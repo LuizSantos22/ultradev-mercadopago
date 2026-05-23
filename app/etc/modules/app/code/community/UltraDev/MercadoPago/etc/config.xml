@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+<config>
+    <modules>
+        <UltraDev_MercadoPago>
+            <version>1.0.0</version>
+        </UltraDev_MercadoPago>
+    </modules>
+
+    <global>
+        <models>
+            <ultradev_mercadopago>
+                <class>UltraDev_MercadoPago_Model</class>
+                <resourceModel>ultradev_mercadopago_resource</resourceModel>
+            </ultradev_mercadopago>
+            <ultradev_mercadopago_resource>
+                <class>UltraDev_MercadoPago_Model_Resource</class>
+                <entities>
+                    <threeds_session>
+                        <table>ultradev_mp_threeds_session</table>
+                    </threeds_session>
+                </entities>
+            </ultradev_mercadopago_resource>
+        </models>
+
+        <resources>
+            <ultradev_mercadopago_setup>
+                <setup>
+                    <module>UltraDev_MercadoPago</module>
+                    <class>Mage_Sales_Model_Resource_Setup</class>
+                </setup>
+            </ultradev_mercadopago_setup>
+        </resources>
+
+        <blocks>
+            <ultradev_mercadopago>
+                <class>UltraDev_MercadoPago_Block</class>
+            </ultradev_mercadopago>
+        </blocks>
+
+        <helpers>
+            <ultradev_mercadopago>
+                <class>UltraDev_MercadoPago_Helper</class>
+            </ultradev_mercadopago>
+        </helpers>
+    </global>
+
+    <frontend>
+        <routers>
+            <ultradev_mercadopago>
+                <use>standard</use>
+                <args>
+                    <module>UltraDev_MercadoPago</module>
+                    <frontName>ultradevmp</frontName>
+                </args>
+            </ultradev_mercadopago>
+        </routers>
+        <layout>
+            <updates>
+                <ultradev_mercadopago>
+                    <file>ultradev_mercadopago.xml</file>
+                </ultradev_mercadopago>
+            </updates>
+        </layout>
+    </frontend>
+
+    <default>
+        <payment>
+            <ultradev_mercadopago>
+                <active>0</active>
+                <model>ultradev_mercadopago/payment</model>
+                <title>MercadoPago</title>
+                <allowspecific>0</allowspecific>
+                <sort_order>10</sort_order>
+                <payment_action>authorize</payment_action>
+                <boleto_due_days>3</boleto_due_days>
+                <binary_mode>0</binary_mode>
+                <statement_descriptor>Loja Online</statement_descriptor>
+            </ultradev_mercadopago>
+        </payment>
+    </default>
+</config>
