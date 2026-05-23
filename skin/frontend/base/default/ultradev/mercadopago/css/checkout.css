@@ -1,0 +1,82 @@
+/* ── UltraDev MercadoPago Checkout ─────────────────────────────── */
+
+#ultradev-mp-form {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #333;
+}
+
+/* Tabs */
+.ump-tabs {
+    list-style: none;
+    margin: 0 0 16px 0;
+    padding: 0;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.ump-tab {
+    padding: 8px 14px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    background: #f9f9f9;
+    transition: background .2s, border-color .2s;
+    user-select: none;
+}
+.ump-tab:hover { background: #e6f4fb; border-color: #009ee3; }
+.ump-tab--active { background: #009ee3; color: #fff; border-color: #009ee3; font-weight: 600; }
+
+/* Layout */
+.ump-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.ump-col-35 { flex: 0 0 35%; min-width: 120px; }
+.ump-col-40 { flex: 0 0 40%; min-width: 120px; }
+.ump-col-50 { flex: 0 0 calc(50% - 6px); min-width: 140px; }
+.ump-col-60 { flex: 0 0 60%; min-width: 160px; }
+.ump-col-65 { flex: 1; min-width: 160px; }
+
+/* Fields */
+.ump-field { margin-bottom: 14px; flex: 1; }
+.ump-field label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+
+/* Secure Fields (iframes do MP) */
+.ump-secure-field {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    height: 40px;
+    padding: 0 10px;
+    background: #fff;
+    transition: border-color .2s;
+}
+.ump-secure-field:focus-within { border-color: #009ee3; outline: none; }
+
+/* Inputs e selects nativos */
+.ump-select,
+.ump-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    background: #fff;
+    box-sizing: border-box;
+}
+.ump-select:focus, .ump-input:focus { border-color: #009ee3; outline: none; }
+
+/* Feedback */
+.ump-error {
+    color: #c00;
+    background: #fff0f0;
+    border: 1px solid #fcc;
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-top: 10px;
+}
+.ump-loading {
+    color: #009ee3;
+    font-size: 13px;
+    margin-top: 8px;
+    padding: 8px 0;
+}
