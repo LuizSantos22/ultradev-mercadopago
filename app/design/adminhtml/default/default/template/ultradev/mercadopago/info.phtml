@@ -1,0 +1,235 @@
+<?php
+/**
+ * Exibe informações do pagamento MercadoPago no painel admin
+ * (pedido, fatura, nota de crédito)
+ *
+ * @var Mage_Payment_Block_Info $this
+ */
+$info   = $this->getInfo();
+$helper = Mage::helper('ultradev_mercadopago');
+
+// Mapa de sub-métodos para label legível
+$submethodLabels = array(
+    'cc'           => $helper->__('Cartão de Crédito'),
+    'pix'          => $helper->__('Pix'),
+    'boleto'       => $helper->__('Boleto Bancário'),
+    'checkout_pro' => $helper->__('Checkout Pro (redirect)'),
+);
+
+$submethod    = $info->getAdditionalInformation('mp_submethod');
+$submethodStr = isset($submethodLabels[$submethod]) ? $submethodLabels[$submethod] : $submethod;
+
+$paymentId    = $info->getAdditionalInformation('payment_id_detail');
+$status       = $info->getAdditionalInformation('status');
+$statusDetail = $info->getAdditionalInformation('status_detail');
+
+// Mapa de status MP para label + cor
+$statusConfig = array(
+    'approved'    => array('label' => 'Aprovado',   'color' => '#2e7d32', 'bg' => '#e8f5e9'),
+    'pending'     => array('label' => 'Pendente',   'color' => '#e65100', 'bg' => '#fff3e0'),
+    'in_process'  => array('label' => 'Em análise', 'color' => '#1565c0', 'bg' => '#e3f2fd'),
+    'rejected'    => array('label' => 'Recusado',   'color' => '#b71c1c', 'bg' => '#ffebee'),
+    'cancelled'   => array('label' => 'Cancelado',  'color' => '#555',    'bg' => '#f5f5f5'),
+    'refunded'    => array('label' => 'Reembolsado','color' => '#6a1b9a', 'bg' => '#f3e5f5'),
+    'charged_back'=> array('label' => 'Chargeback', 'color' => '#bf360c', 'bg' => '#fbe9e7'),
+);
+
+$sc           = isset($statusConfig[$status]) ? $statusConfig[$status] : array('label' => ucfirst($status), 'color' => '#333', 'bg' => '#f5f5f5');
+$mpAdminUrl   = $paymentId ? 'https://www.mercadopago.com.br/activities/search?search=' . $paymentId : '';
+?>
+
+<style>
+    .ump-admin-box { font-family: Arial, sans-serif; font-size: 13px; color: #333; margin: 8px 0; }
+    .ump-admin-box table { width: 100%; border-collapse: collapse; }
+    .ump-admin-box td { padding: 6px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+    .ump-admin-box td:first-child { font-weight: bold; color: #555; width: 40%; white-space: nowrap; }
+    .ump-admin-box .ump-section { background: #f9f9f9; padding: 4px 8px; font-weight: bold; color: #444; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #ddd; }
+    .ump-status-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+    .ump-admin-link { color: #009ee3; text-decoration: none; }
+    .ump-admin-link:hover { text-decoration: underline; }
+    .ump-barcode { font-family: monospace; font-size: 11px; word-break: break-all; }
+    .ump-pix-qr img { max-width: 120px; border: 4px solid #fff; box-shadow: 0 0 0 1px #ddd; border-radius: 4px; }
+</style>
+
+<div class="ump-admin-box">
+    <table>
+
+        <?php /* ── Cabeçalho ── */ ?>
+        <tr>
+            <td colspan="2" class="ump-section">
+                MercadoPago — Detalhes do Pagamento
+            </td>
+        </tr>
+
+        <?php /* Sub-método */ ?>
+        <tr>
+            <td><?php echo $helper->__('Forma de Pagamento') ?></td>
+            <td><?php echo $this->htmlEscape($submethodStr) ?></td>
+        </tr>
+
+        <?php /* ID do pagamento no MP */ ?>
+        <?php if ($paymentId): ?>
+        <tr>
+            <td><?php echo $helper->__('ID MercadoPago') ?></td>
+            <td>
+                <?php if ($mpAdminUrl): ?>
+                    <a href="<?php echo $mpAdminUrl ?>" target="_blank" rel="noopener" class="ump-admin-link">
+                        <?php echo $this->htmlEscape($paymentId) ?> ↗
+                    </a>
+                <?php else: ?>
+                    <?php echo $this->htmlEscape($paymentId) ?>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <?php endif; ?>
+
+        <?php /* Status */ ?>
+        <?php if ($status): ?>
+        <tr>
+            <td><?php echo $helper->__('Status MP') ?></td>
+            <td>
+                <span class="ump-status-badge"
+                      style="background:<?php echo $sc['bg'] ?>; color:<?php echo $sc['color'] ?>">
+                    <?php echo $sc['label'] ?>
+                </span>
+                <?php if ($statusDetail): ?>
+                    <span style="font-size:11px; color:#888; margin-left:6px;">
+                        (<?php echo $this->htmlEscape($statusDetail) ?>)
+                    </span>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <?php endif; ?>
+
+        <?php /* ── Cartão de crédito ── */ ?>
+        <?php if ($submethod === 'cc'): ?>
+
+            <?php $cardHolder = $info->getAdditionalInformation('cardholderName'); ?>
+            <?php if ($cardHolder): ?>
+            <tr>
+                <td><?php echo $helper->__('Titular') ?></td>
+                <td><?php echo $this->htmlEscape($cardHolder) ?></td>
+            </tr>
+            <?php endif; ?>
+
+            <?php $truncCard = $info->getAdditionalInformation('trunc_card'); ?>
+            <?php if ($truncCard): ?>
+            <tr>
+                <td><?php echo $helper->__('Cartão') ?></td>
+                <td><?php echo $this->htmlEscape($truncCard) ?></td>
+            </tr>
+            <?php endif; ?>
+
+            <?php $pmId = $info->getAdditionalInformation('payment_method_id'); ?>
+            <?php if ($pmId): ?>
+            <tr>
+                <td><?php echo $helper->__('Bandeira') ?></td>
+                <td><?php echo $this->htmlEscape(strtoupper($pmId)) ?></td>
+            </tr>
+            <?php endif; ?>
+
+            <?php $installments = $info->getAdditionalInformation('installments'); ?>
+            <?php if ($installments): ?>
+            <tr>
+                <td><?php echo $helper->__('Parcelas') ?></td>
+                <td><?php echo (int) $installments ?>x</td>
+            </tr>
+            <?php endif; ?>
+
+            <?php $docType = $info->getAdditionalInformation('payer_identification_type'); ?>
+            <?php $docNum  = $info->getAdditionalInformation('payer_identification_number'); ?>
+            <?php if ($docType && $docNum): ?>
+            <tr>
+                <td><?php echo $helper->__('Documento') ?></td>
+                <td><?php echo $this->htmlEscape($docType . ': ' . $docNum) ?></td>
+            </tr>
+            <?php endif; ?>
+
+            <?php $requires3ds = $info->getAdditionalInformation('requires_3ds'); ?>
+            <?php if ($requires3ds): ?>
+            <tr>
+                <td><?php echo $helper->__('3D Secure') ?></td>
+                <td><span style="color:#1565c0; font-weight:bold;">✓ Challenge realizado</span></td>
+            </tr>
+            <?php endif; ?>
+
+        <?php endif; /* /cc */ ?>
+
+        <?php /* ── Pix ── */ ?>
+        <?php if ($submethod === 'pix'): ?>
+
+            <?php $qrBase64 = $info->getAdditionalInformation('pix_qr_base64'); ?>
+            <?php if ($qrBase64): ?>
+            <tr>
+                <td><?php echo $helper->__('QR Code Pix') ?></td>
+                <td class="ump-pix-qr">
+                    <img src="data:image/png;base64,<?php echo $qrBase64 ?>"
+                         alt="QR Code Pix"/>
+                </td>
+            </tr>
+            <?php endif; ?>
+
+            <?php $qrCode = $info->getAdditionalInformation('pix_qr_code'); ?>
+            <?php if ($qrCode): ?>
+            <tr>
+                <td><?php echo $helper->__('Pix Copia e Cola') ?></td>
+                <td class="ump-barcode"><?php echo $this->htmlEscape($qrCode) ?></td>
+            </tr>
+            <?php endif; ?>
+
+        <?php endif; /* /pix */ ?>
+
+        <?php /* ── Boleto ── */ ?>
+        <?php if ($submethod === 'boleto'): ?>
+
+            <?php $boletoUrl = $info->getAdditionalInformation('boleto_url'); ?>
+            <?php if ($boletoUrl): ?>
+            <tr>
+                <td><?php echo $helper->__('Link do Boleto') ?></td>
+                <td>
+                    <a href="<?php echo $this->htmlEscape($boletoUrl) ?>"
+                       target="_blank" rel="noopener" class="ump-admin-link">
+                        <?php echo $helper->__('Abrir / Imprimir Boleto') ?> ↗
+                    </a>
+                </td>
+            </tr>
+            <?php endif; ?>
+
+            <?php $barcode = $info->getAdditionalInformation('boleto_barcode'); ?>
+            <?php if ($barcode): ?>
+            <tr>
+                <td><?php echo $helper->__('Linha Digitável') ?></td>
+                <td class="ump-barcode"><?php echo $this->htmlEscape($barcode) ?></td>
+            </tr>
+            <?php endif; ?>
+
+            <?php $dueDate = $info->getAdditionalInformation('boleto_due_date'); ?>
+            <?php if ($dueDate): ?>
+            <tr>
+                <td><?php echo $helper->__('Vencimento') ?></td>
+                <td><?php echo $this->htmlEscape(date('d/m/Y', strtotime($dueDate))) ?></td>
+            </tr>
+            <?php endif; ?>
+
+        <?php endif; /* /boleto */ ?>
+
+        <?php /* ── Checkout Pro ── */ ?>
+        <?php if ($submethod === 'checkout_pro'): ?>
+
+            <?php $proRedirect = $info->getAdditionalInformation('checkout_pro_redirect'); ?>
+            <?php if ($proRedirect): ?>
+            <tr>
+                <td><?php echo $helper->__('Preferência MP') ?></td>
+                <td>
+                    <a href="<?php echo $this->htmlEscape($proRedirect) ?>"
+                       target="_blank" rel="noopener" class="ump-admin-link">
+                        <?php echo $helper->__('Ver no MercadoPago') ?> ↗
+                    </a>
+                </td>
+            </tr>
+            <?php endif; ?>
+
+        <?php endif; /* /checkout_pro */ ?>
+
+    </table>
+</div>
