@@ -2,6 +2,7 @@
  * UltraDev MercadoPago Checkout
  * MP SDK v2 + cardForm — CC com 3DS, Pix, Boleto, Checkout Pro
  * Compatível com Prototype.js (OpenMage/Magento 1)
+ * Integração correta com Moip OSC (onestep_form / .moip-place-order)
  */
 
 var UltraDevMP = (function () {
@@ -18,9 +19,16 @@ var UltraDevMP = (function () {
         isSandbox:       false
     };
 
-    var mp       = null;
-    var cardForm = null;
+    var mp            = null;
+    var cardForm      = null;
     var currentSubmethod = 'cc';
+
+    // Flag que evita loop: após tokenizar, a próxima chamada ao interceptor
+    // já tem o token pronto e deve deixar o submit prosseguir normalmente.
+    var _tokenized = false;
+
+    // Callback a chamar depois que o token estiver pronto (resolve a Promise do interceptor)
+    var _resolveSubmit = null;
 
     var SEL = {
         tabs:            '.ump-tab',
@@ -57,6 +65,7 @@ var UltraDevMP = (function () {
 
         _bindTabs();
         _activateTab('cc');
+        _hookMoipOSC();
     }
 
     // ── Tabs ──────────────────────────────────────────────────────
@@ -71,6 +80,7 @@ var UltraDevMP = (function () {
 
     function _activateTab(sub) {
         currentSubmethod = sub;
+        _tokenized = false; // troca de aba zera o token anterior
 
         document.querySelectorAll(SEL.tabs).forEach(function (t) {
             t.classList.toggle('ump-tab--active', t.dataset.submethod === sub);
@@ -99,15 +109,15 @@ var UltraDevMP = (function () {
                 autoMount: true,
                 form: {
                     id: 'ump-cardform',
-                    cardholderName:      { id: 'ump-cardholderName',   placeholder: 'Nome no cartão' },
-                    cardNumber:          { id: 'ump-cardNumber',        placeholder: '0000 0000 0000 0000' },
-                    cardExpirationMonth: { id: 'ump-cardExpMonth',      placeholder: 'MM' },
-                    cardExpirationYear:  { id: 'ump-cardExpYear',       placeholder: 'AAAA' },
-                    securityCode:        { id: 'ump-securityCode',      placeholder: 'CVV' },
-                    installments:        { id: 'ump-installments-select' },
-                    identificationType:  { id: 'ump-doc-type-select' },
-                    identificationNumber:{ id: 'ump-doc-number-input',  placeholder: 'Ex: 00000000000' },
-                    issuer:              { id: 'ump-issuer-select' }
+                    cardholderName:       { id: 'ump-cardholderName',    placeholder: 'Nome no cartão' },
+                    cardNumber:           { id: 'ump-cardNumber',         placeholder: '0000 0000 0000 0000' },
+                    cardExpirationMonth:  { id: 'ump-cardExpMonth',       placeholder: 'MM' },
+                    cardExpirationYear:   { id: 'ump-cardExpYear',        placeholder: 'AAAA' },
+                    securityCode:         { id: 'ump-securityCode',       placeholder: 'CVV' },
+                    installments:         { id: 'ump-installments-select' },
+                    identificationType:   { id: 'ump-doc-type-select' },
+                    identificationNumber: { id: 'ump-doc-number-input',   placeholder: 'Ex: 00000000000' },
+                    issuer:               { id: 'ump-issuer-select' }
                 },
                 callbacks: {
                     onFormMounted: function (error) {
@@ -121,14 +131,18 @@ var UltraDevMP = (function () {
                         if (error) {
                             _showError(_friendlyError(error));
                             _setLoading(false);
+                            if (_resolveSubmit) { _resolveSubmit(false); _resolveSubmit = null; }
                             return;
                         }
-                        _fillHiddenAndSubmit(token);
+                        _fillHiddenFields(token);
+                        _tokenized = true;
+                        if (_resolveSubmit) { _resolveSubmit(true); _resolveSubmit = null; }
                     },
                     onError: function (errors) {
                         if (!errors || !errors.length) return;
                         _showError(errors.map(function (e) { return e.message; }).join(' '));
                         _setLoading(false);
+                        if (_resolveSubmit) { _resolveSubmit(false); _resolveSubmit = null; }
                     }
                 }
             });
@@ -142,45 +156,89 @@ var UltraDevMP = (function () {
             try { cardForm.unmount(); } catch (e) {}
             cardForm = null;
         }
+        _tokenized = false;
     }
 
-    // ── Ponto de entrada público — chamado pelo botão do OSC ─────
-    // O checkout chama payment.save() ou dispara o submit do form.
-    // Interceptamos aqui antes de o form ser enviado.
+    // ── Integração com Moip OSC ───────────────────────────────────
+    //
+    // O OSC usa:
+    //   form#onestep_form (serializado via jQuery)
+    //   botão .moip-place-order → updateOrderMethod() → POST AJAX
+    //
+    // Não existe OnestepcheckoutForm.prototype.placeOrder aqui.
+    // A estratégia correta é interceptar o clique no botão ANTES de
+    // updateOrderMethod() ser chamado, gerar o token, preencher os
+    // hidden fields (que farão parte do serialize()) e só então
+    // deixar o OSC continuar.
 
-    function beforeSubmit() {
-        _clearError();
-        _setLoading(true);
+    function _hookMoipOSC() {
+        // Aguarda o DOM estar pronto e o OSC ter bindado seus próprios handlers.
+        // Usamos delegação no document com stopImmediatePropagation para
+        // interceptar antes do handler original do OSC.
+        setTimeout(function () {
+            if (typeof jQuery === 'undefined') return;
 
-        switch (currentSubmethod) {
-            case 'cc':
-                _submitCc();
-                return false; // bloqueia submit; callback do cardForm vai liberar
-            case 'pix':
-                return _submitPix();
-            case 'boleto':
-                return _submitBoleto();
-            case 'checkout_pro':
-                return true; // deixa o checkout seguir normalmente
-            default:
-                _setLoading(false);
-                return true;
-        }
+            jQuery(document).on('click', '.moip-place-order', function (e) {
+                var selectedMethod = jQuery('input[name="payment[method]"]:checked').val();
+                if (selectedMethod !== cfg.methodCode) return; // outro método — deixa passar
+
+                e.stopImmediatePropagation(); // bloqueia o handler original do OSC
+                e.preventDefault();
+
+                _clearError();
+
+                switch (currentSubmethod) {
+                    case 'cc':
+                        _handleCcBeforeSubmit();
+                        break;
+                    case 'pix':
+                        if (_validateTicket('pix')) _triggerOscSubmit();
+                        break;
+                    case 'boleto':
+                        if (_validateTicket('boleto')) _triggerOscSubmit();
+                        break;
+                    case 'checkout_pro':
+                        _triggerOscSubmit();
+                        break;
+                    default:
+                        _triggerOscSubmit();
+                }
+            });
+
+        }, 500);
     }
 
-    // ── CC ────────────────────────────────────────────────────────
+    // ── CC: tokeniza e só então dispara o OSC ─────────────────────
 
-    function _submitCc() {
-        if (!cardForm) {
-            _showError('Formulário do cartão não inicializado. Recarregue a página.');
-            _setLoading(false);
+    function _handleCcBeforeSubmit() {
+        if (_tokenized) {
+            // Token já gerado neste ciclo — continua direto
+            _triggerOscSubmit();
             return;
         }
+
+        if (!cardForm) {
+            _showError('Formulário do cartão não inicializado. Recarregue a página.');
+            return;
+        }
+
+        _setLoading(true);
+
+        var promise = new Promise(function (resolve) {
+            _resolveSubmit = resolve;
+        });
+
         cardForm.createCardToken();
-        // continua em onCardTokenReceived
+
+        promise.then(function (success) {
+            _setLoading(false);
+            if (success) {
+                _triggerOscSubmit();
+            }
+        });
     }
 
-    function _fillHiddenAndSubmit(token) {
+    function _fillHiddenFields(token) {
         var data = cardForm.getCardFormData();
 
         _setHidden(SEL.hiddenToken,     token.id || '');
@@ -191,19 +249,18 @@ var UltraDevMP = (function () {
         _setHidden(SEL.hiddenTruncCard, 'xxxx xxxx xxxx ' + (token.last_four_digits || ''));
         _setHidden(SEL.hiddenDocType,   data.identificationType || 'CPF');
         _setHidden(SEL.hiddenDocNum,    (data.identificationNumber || '').replace(/\D/g, ''));
-
-        _triggerCheckoutSubmit();
     }
 
-    // ── PIX ───────────────────────────────────────────────────────
+    // ── Pix / Boleto ─────────────────────────────────────────────
 
-    function _submitPix() {
-        var docType = document.querySelector(SEL.pixDocType);
-        var docNum  = document.querySelector(SEL.pixDocNum);
+    function _validateTicket(type) {
+        var docTypeSel = type === 'pix' ? SEL.pixDocType : SEL.boletoDocType;
+        var docNumSel  = type === 'pix' ? SEL.pixDocNum  : SEL.boletoDocNum;
+        var docType    = document.querySelector(docTypeSel);
+        var docNum     = document.querySelector(docNumSel);
 
         if (!docNum || !docNum.value.replace(/\D/g, '')) {
-            _showError('Informe o CPF/CNPJ para pagamento via Pix.');
-            _setLoading(false);
+            _showError('Informe o CPF/CNPJ para pagamento via ' + (type === 'pix' ? 'Pix' : 'Boleto') + '.');
             return false;
         }
 
@@ -212,54 +269,34 @@ var UltraDevMP = (function () {
         return true;
     }
 
-    // ── BOLETO ────────────────────────────────────────────────────
+    // ── Dispara o submit do OSC manualmente ───────────────────────
+    // Replica exatamente o que o handler original do .moip-place-order faz:
+    // valida o VarienForm e chama updateOrderMethod()
 
-    function _submitBoleto() {
-        var docType = document.querySelector(SEL.boletoDocType);
-        var docNum  = document.querySelector(SEL.boletoDocNum);
-
-        if (!docNum || !docNum.value.replace(/\D/g, '')) {
-            _showError('Informe o CPF/CNPJ para geração do Boleto.');
-            _setLoading(false);
-            return false;
-        }
-
-        _setHidden(SEL.hiddenDocType, docType ? docType.value : 'CPF');
-        _setHidden(SEL.hiddenDocNum,  docNum.value.replace(/\D/g, ''));
-        return true;
-    }
-
-    // ── Integração OSC (Moip One Step Checkout) ───────────────────
-    // O OSC usa OnestepcheckoutForm.prototype.placeOrder
-    // Mesmo padrão que o MPv1.js original usava
-
-    function _triggerCheckoutSubmit() {
-        // Moip OSC
-        if (typeof OnestepcheckoutForm === 'function') {
-            var form = $$('form#onestepcheckout-form')[0]
-                    || document.getElementById('onestepcheckout-form');
-            if (form) {
-                // dispara o submit nativo — o OSC vai capturar
-                var event = document.createEvent('Event');
-                event.initEvent('submit', true, true);
-                form.dispatchEvent(event);
-                return;
+    function _triggerOscSubmit() {
+        if (typeof VarienForm !== 'undefined' && typeof updateOrderMethod === 'function') {
+            var form = new VarienForm('onestep_form', true);
+            if (form.validator && form.validator.validate()) {
+                updateOrderMethod();
+            } else {
+                if (typeof visibilyloading === 'function') visibilyloading('end');
+                if (typeof getErroDescription === 'function') getErroDescription();
+                if (typeof jQuery !== 'undefined') {
+                    jQuery('#ErrosFinalizacao').modal();
+                    jQuery('.moip-place-order').show();
+                    jQuery('.validation-advice').delay(5000).fadeOut('slow');
+                }
             }
-        }
-
-        // Onepage padrão
-        if (window.checkout && typeof window.checkout.save === 'function') {
-            window.checkout.save();
             return;
         }
 
-        // Fallback: clica no botão place order
-        var btn = document.querySelector(
-            '#onestepcheckout-place-order-button, ' +
-            '#review-buttons-container .btn-checkout, ' +
-            'button.btn-checkout'
-        );
-        if (btn) btn.click();
+        // Fallback genérico
+        var btn = document.querySelector('.moip-place-order, #review-buttons-container .btn-checkout, button.btn-checkout');
+        if (btn) {
+            var clone = btn.cloneNode(true);
+            btn.parentNode.replaceChild(clone, btn);
+            clone.click();
+        }
     }
 
     // ── 3DS Challenge polling ─────────────────────────────────────
@@ -279,12 +316,22 @@ var UltraDevMP = (function () {
                         clearInterval(interval);
                         alert('Pagamento recusado. Por favor, tente com outro cartão.');
                     }
-                    // pending_challenge: continua aguardando
                 } catch (e) { /* ignora erro de parse */ }
             };
             xhr.send();
         }, 3000);
         return interval;
+    }
+
+    // ── Reinit após refresh AJAX do bloco de pagamento ────────────
+    // Chamado pelo OSC após recarregar #payment-method-available (ex: troca de frete)
+
+    function reinit() {
+        _destroyCardForm();
+        _tokenized = false;
+        if (currentSubmethod === 'cc') {
+            _initCardForm();
+        }
     }
 
     // ── UI helpers ────────────────────────────────────────────────
@@ -346,35 +393,8 @@ var UltraDevMP = (function () {
 
     return {
         init:                init,
-        beforeSubmit:        beforeSubmit,
+        reinit:              reinit,
         startThreeDsPolling: startThreeDsPolling
     };
 
 }());
-
-// ── Integração com Moip OSC ───────────────────────────────────────
-// Mesmo padrão do MPv1.js original que já funcionava no seu OSC
-document.addEventListener('DOMContentLoaded', function () {
-    if (typeof OnestepcheckoutForm !== 'function') return;
-
-    var _originalPlaceOrder = OnestepcheckoutForm.prototype.placeOrder;
-
-    OnestepcheckoutForm.prototype.placeOrder = function () {
-        var selectedMethod = (function () {
-            var el = document.querySelector('input[name="payment[method]"]:checked');
-            return el ? el.value : '';
-        }());
-
-        if (selectedMethod !== 'ultradev_mercadopago') {
-            return _originalPlaceOrder.apply(this, arguments);
-        }
-
-        var canProceed = UltraDevMP.beforeSubmit();
-
-        // Para CC: beforeSubmit retorna false (aguarda tokenização assíncrona)
-        // Para Pix/Boleto/Pro: retorna true — segue o fluxo normal do OSC
-        if (canProceed === false) return;
-
-        return _originalPlaceOrder.apply(this, arguments);
-    };
-});
