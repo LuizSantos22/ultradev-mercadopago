@@ -10,33 +10,13 @@
         <models>
             <ultradev_mercadopago>
                 <class>UltraDev_MercadoPago_Model</class>
-                <resourceModel>ultradev_mercadopago_resource</resourceModel>
             </ultradev_mercadopago>
-            <ultradev_mercadopago_resource>
-                <class>UltraDev_MercadoPago_Model_Resource</class>
-                <entities>
-                    <threeds_session>
-                        <table>ultradev_mp_threeds_session</table>
-                    </threeds_session>
-                </entities>
-            </ultradev_mercadopago_resource>
         </models>
-
-        <resources>
-            <ultradev_mercadopago_setup>
-                <setup>
-                    <module>UltraDev_MercadoPago</module>
-                    <class>Mage_Sales_Model_Resource_Setup</class>
-                </setup>
-            </ultradev_mercadopago_setup>
-        </resources>
-
         <blocks>
             <ultradev_mercadopago>
                 <class>UltraDev_MercadoPago_Block</class>
             </ultradev_mercadopago>
         </blocks>
-
         <helpers>
             <ultradev_mercadopago>
                 <class>UltraDev_MercadoPago_Helper</class>
@@ -50,7 +30,7 @@
                 <use>standard</use>
                 <args>
                     <module>UltraDev_MercadoPago</module>
-                    <frontName>ultradevmp</frontName>
+                    <frontName>ultradev-mercadopago</frontName>
                 </args>
             </ultradev_mercadopago>
         </routers>
@@ -61,22 +41,69 @@
                 </ultradev_mercadopago>
             </updates>
         </layout>
+        <translate>
+            <modules>
+                <UltraDev_MercadoPago>
+                    <files>
+                        <default>UltraDev_MercadoPago.csv</default>
+                    </files>
+                </UltraDev_MercadoPago>
+            </translate>
+        </translate>
     </frontend>
+
+    <adminhtml>
+        <translate>
+            <modules>
+                <UltraDev_MercadoPago>
+                    <files>
+                        <default>UltraDev_MercadoPago.csv</default>
+                    </files>
+                </UltraDev_MercadoPago>
+            </translate>
+        </translate>
+    </adminhtml>
 
     <default>
         <payment>
-            <ultradev_mercadopago>
+            <ultradev_mercadopago_cc>
                 <active>0</active>
-                <model>ultradev_mercadopago/payment</model>
-                <title>MercadoPago</title>
+                <model>ultradev_mercadopago/method_cc</model>
+                <title>Cartão de Crédito (Mercado Pago)</title>
+                <order_status>pending</order_status>
+                <payment_action>authorize_capture</payment_action>
                 <allowspecific>0</allowspecific>
                 <sort_order>10</sort_order>
-                <payment_action>authorize</payment_action>
-                <boleto_due_days>3</boleto_due_days>
-                <binary_mode>0</binary_mode>
-                <statement_descriptor>Loja Online</statement_descriptor>
-                <logs>0</logs>
-            </ultradev_mercadopago>
+            </ultradev_mercadopago_cc>
+            <ultradev_mercadopago_pix>
+                <active>0</active>
+                <model>ultradev_mercadopago/method_pix</model>
+                <title>Pix (Mercado Pago)</title>
+                <order_status>pending</order_status>
+                <payment_action>authorize_capture</payment_action>
+                <pix_expiration>PT30M</pix_expiration>
+                <allowspecific>0</allowspecific>
+                <sort_order>20</sort_order>
+            </ultradev_mercadopago_pix>
+            <ultradev_mercadopago_boleto>
+                <active>0</active>
+                <model>ultradev_mercadopago/method_boleto</model>
+                <title>Boleto Bancário (Mercado Pago)</title>
+                <order_status>pending</order_status>
+                <payment_action>authorize_capture</payment_action>
+                <boleto_expiration>P3D</boleto_expiration>
+                <allowspecific>0</allowspecific>
+                <sort_order>30</sort_order>
+            </ultradev_mercadopago_boleto>
         </payment>
     </default>
+
+    <crontab>
+        <jobs>
+            <ultradev_mercadopago_check_pending>
+                <schedule><cron_expr>*/15 * * * *</cron_expr></schedule>
+                <run><model>ultradev_mercadopago/observer::checkPendingOrders</model></run>
+            </ultradev_mercadopago_check_pending>
+        </jobs>
+    </crontab>
 </config>
