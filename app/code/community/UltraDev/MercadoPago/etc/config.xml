@@ -55,7 +55,7 @@
                         <default>UltraDev_MercadoPago.csv</default>
                     </files>
                 </UltraDev_MercadoPago>
-            </translate>
+            </modules>
         </translate>
     </frontend>
 
@@ -67,7 +67,7 @@
                         <default>UltraDev_MercadoPago.csv</default>
                     </files>
                 </UltraDev_MercadoPago>
-            </translate>
+            </modules>
         </translate>
     </adminhtml>
 
