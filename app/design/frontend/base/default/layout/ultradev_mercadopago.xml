@@ -11,4 +11,16 @@
         </reference>
     </ultradev_mercadopago_checkout_success>
 
+    <checkout_onepage_index>
+        <reference name="head">
+            <action method="addJs"><script>https://sdk.mercadopago.com/js/v2</script></action>
+        </reference>
+    </checkout_onepage_index>
+
+    <onestepcheckout_index_index>
+        <reference name="head">
+            <action method="addJs"><script>https://sdk.mercadopago.com/js/v2</script></action>
+        </reference>
+    </onestepcheckout_index_index>
+
 </layout>
