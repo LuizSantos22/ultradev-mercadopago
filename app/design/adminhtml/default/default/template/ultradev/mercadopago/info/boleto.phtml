@@ -1,0 +1,24 @@
+<?php
+/** @var UltraDev_MercadoPago_Block_Info_Boleto $this */
+$info = $this->getInfo();
+?>
+<table class="mp-admin-info" cellspacing="0">
+    <?php foreach ($this->getSpecificInformation() as $label => $value): ?>
+    <tr>
+        <th><?php echo $this->htmlEscape($label); ?></th>
+        <td><?php echo $this->htmlEscape($value); ?></td>
+    </tr>
+    <?php endforeach; ?>
+    <?php if ($url = $info->getAdditionalInformation('mp_ticket_url')): ?>
+    <tr>
+        <th><?php echo $this->__('Boleto'); ?></th>
+        <td><a href="<?php echo $this->htmlEscape($url); ?>" target="_blank">Visualizar</a></td>
+    </tr>
+    <?php endif; ?>
+    <?php if ($dg = $info->getAdditionalInformation('mp_digitable_line')): ?>
+    <tr>
+        <th><?php echo $this->__('Linha Digitável'); ?></th>
+        <td><?php echo $this->htmlEscape($dg); ?></td>
+    </tr>
+    <?php endif; ?>
+</table>
