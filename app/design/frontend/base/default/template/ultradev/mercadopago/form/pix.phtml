@@ -1,5 +1,12 @@
-<?php /** @var Mage_Payment_Block_Form $this */ ?>
-<div id="mp-pix-form" class="mp-payment-form">
-    <p><?php echo $this->__('Após confirmar o pedido, você receberá o QR Code e o código Pix para efetuar o pagamento.'); ?></p>
-    <p style="color:#666; font-size:0.9em;"><?php echo $this->__('O Pix expira em 30 minutos após a geração.'); ?></p>
-</div>
+<?php
+/** @var Mage_Payment_Block_Form $this */
+$code = $this->getMethodCode();
+?>
+<ul id="payment_form_<?php echo $code; ?>" style="display:none; list-style:none; padding:0; margin:0;">
+    <li>
+        <div id="mp-pix-form" class="mp-payment-form">
+            <p><?php echo $this->__('Após confirmar o pedido, você receberá o QR Code e o código Pix para efetuar o pagamento.'); ?></p>
+            <p style="color:#666; font-size:0.9em;"><?php echo $this->__('O Pix expira em 30 minutos após a geração.'); ?></p>
+        </div>
+    </li>
+</ul>
