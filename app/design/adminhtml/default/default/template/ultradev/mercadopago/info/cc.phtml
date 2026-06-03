@@ -1,0 +1,9 @@
+<?php /** @var UltraDev_MercadoPago_Block_Info_Cc $this */ ?>
+<table class="mp-admin-info" cellspacing="0">
+    <?php foreach ($this->getSpecificInformation() as $label => $value): ?>
+    <tr>
+        <th><?php echo $this->htmlEscape($label); ?></th>
+        <td><?php echo $this->htmlEscape($value); ?></td>
+    </tr>
+    <?php endforeach; ?>
+</table>
