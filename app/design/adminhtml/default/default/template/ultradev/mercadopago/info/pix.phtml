@@ -1,0 +1,18 @@
+<?php
+/** @var UltraDev_MercadoPago_Block_Info_Pix $this */
+$info = $this->getInfo();
+?>
+<table class="mp-admin-info" cellspacing="0">
+    <?php foreach ($this->getSpecificInformation() as $label => $value): ?>
+    <tr>
+        <th><?php echo $this->htmlEscape($label); ?></th>
+        <td><?php echo $this->htmlEscape($value); ?></td>
+    </tr>
+    <?php endforeach; ?>
+    <?php if ($url = $info->getAdditionalInformation('mp_ticket_url')): ?>
+    <tr>
+        <th><?php echo $this->__('QR Code'); ?></th>
+        <td><a href="<?php echo $this->htmlEscape($url); ?>" target="_blank">Abrir</a></td>
+    </tr>
+    <?php endif; ?>
+</table>
