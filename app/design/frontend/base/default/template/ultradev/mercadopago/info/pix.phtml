@@ -1,0 +1,28 @@
+<?php
+/** @var UltraDev_MercadoPago_Block_Info_Pix $this */
+$info      = $this->getInfo();
+$ticketUrl = $info->getAdditionalInformation('mp_ticket_url');
+$qrBase64  = $info->getAdditionalInformation('mp_qr_code_base64');
+$qrCode    = $info->getAdditionalInformation('mp_qr_code');
+?>
+<div class="mp-pix-info">
+    <?php if ($qrBase64): ?>
+        <p><strong><?php echo $this->__('QR Code Pix'); ?></strong></p>
+        <img src="data:image/jpeg;base64,<?php echo $this->htmlEscape($qrBase64); ?>"
+             alt="QR Code Pix" style="max-width:200px;"/>
+    <?php endif; ?>
+
+    <?php if ($qrCode): ?>
+        <p><strong><?php echo $this->__('Pix Copia e Cola'); ?></strong></p>
+        <input type="text" value="<?php echo $this->htmlEscape($qrCode); ?>" readonly
+               onclick="this.select();" style="width:100%;"/>
+    <?php endif; ?>
+
+    <?php if ($ticketUrl): ?>
+        <p>
+            <a href="<?php echo $this->htmlEscape($ticketUrl); ?>" target="_blank" class="button">
+                <?php echo $this->__('Abrir página de pagamento Pix'); ?>
+            </a>
+        </p>
+    <?php endif; ?>
+</div>
