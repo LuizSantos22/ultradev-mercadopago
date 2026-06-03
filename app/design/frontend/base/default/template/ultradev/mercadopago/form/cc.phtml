@@ -81,16 +81,20 @@ $code      = $this->getMethodCode();
             }
 
             function loadSDKAndInit() {
-                if (document.querySelector('script[src*="sdk.mercadopago"]')) {
-                    waitForMP(initBrick);
-                    return;
-                }
-                var s = document.createElement('script');
-                s.src = MP_SDK_URL;
-                s.onload = function() { initBrick(); };
-                s.onerror = function() { console.error('[MP] Falha ao carregar SDK'); };
-                document.head.appendChild(s);
-            }
+    if (document.querySelector('script[src*="sdk.mercadopago"]')) {
+        waitForMP(function() {
+            setTimeout(initBrick, 300); // aguarda o display:block propagar
+        });
+        return;
+    }
+    var s = document.createElement('script');
+    s.src = MP_SDK_URL;
+    s.onload = function() {
+        setTimeout(initBrick, 300);
+    };
+    s.onerror = function() { console.error('[MP] Falha ao carregar SDK'); };
+    document.head.appendChild(s);
+}
 
             function waitForMP(cb) {
                 if (typeof MercadoPago !== 'undefined') { cb(); }
