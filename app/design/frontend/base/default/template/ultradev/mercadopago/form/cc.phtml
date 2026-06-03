@@ -1,0 +1,53 @@
+<?php
+/** @var UltraDev_MercadoPago_Block_Form_Cc $this */
+$publicKey = $this->getPublicKey();
+?>
+<div id="mp-cc-form" class="mp-payment-form">
+
+    <div id="cardPaymentBrick_container"></div>
+
+    <input type="hidden" id="mp_token"             name="payment[mp_token]"             value=""/>
+    <input type="hidden" id="mp_payment_method_id" name="payment[mp_payment_method_id]" value=""/>
+    <input type="hidden" id="mp_payment_type_id"   name="payment[mp_payment_type_id]"   value=""/>
+    <input type="hidden" id="mp_installments"      name="payment[mp_installments]"      value="1"/>
+    <input type="hidden" id="mp_doc_type"           name="payment[mp_doc_type]"           value=""/>
+    <input type="hidden" id="mp_doc_number"         name="payment[mp_doc_number]"         value=""/>
+
+</div>
+
+<script>
+(function() {
+    var publicKey = '<?php echo $this->jsQuoteEscape($publicKey); ?>';
+
+    function waitForMP(cb) {
+        if (typeof MercadoPago !== 'undefined') { cb(); }
+        else { setTimeout(function(){ waitForMP(cb); }, 200); }
+    }
+
+    waitForMP(function() {
+        var mp      = new MercadoPago(publicKey, { locale: 'pt-BR' });
+        var bricks  = mp.bricks();
+        var amount  = window.checkoutConfig ? parseFloat(window.checkoutConfig.quoteData.grand_total) : 0;
+
+        bricks.create('cardPayment', 'cardPaymentBrick_container', {
+            initialization: { amount: amount },
+            callbacks: {
+                onReady: function() {},
+                onSubmit: function(formData, additionalData) {
+                    document.getElementById('mp_token').value             = formData.token;
+                    document.getElementById('mp_payment_method_id').value = formData.payment_method_id;
+                    document.getElementById('mp_payment_type_id').value   = additionalData.paymentTypeId;
+                    document.getElementById('mp_installments').value      = formData.installments;
+                    document.getElementById('mp_doc_type').value          = formData.payer.identification.type;
+                    document.getElementById('mp_doc_number').value        = formData.payer.identification.number;
+
+                    // Submete o checkout do OpenMage
+                    if (typeof payment !== 'undefined') { payment.save(); }
+                    return Promise.resolve();
+                },
+                onError: function(err) { console.error('[MP Brick]', err); }
+            }
+        });
+    });
+})();
+</script>
