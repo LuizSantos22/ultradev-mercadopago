@@ -5,7 +5,8 @@
             <active>true</active>
             <codePool>community</codePool>
             <depends>
-                <Mage_Payment />
+                <Mage_Payment/>
+                <Mage_Checkout/>
             </depends>
         </UltraDev_MercadoPago>
     </modules>
