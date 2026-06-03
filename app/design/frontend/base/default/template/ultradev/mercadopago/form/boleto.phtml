@@ -1,5 +1,12 @@
-<?php /** @var Mage_Payment_Block_Form $this */ ?>
-<div id="mp-boleto-form" class="mp-payment-form">
-    <p><?php echo $this->__('O boleto será gerado após a confirmação do pedido.'); ?></p>
-    <p style="color:#666; font-size:0.9em;"><?php echo $this->__('O prazo de vencimento é de 3 dias úteis. Os dados de endereço serão utilizados conforme cadastrado.'); ?></p>
-</div>
+<?php
+/** @var Mage_Payment_Block_Form $this */
+$code = $this->getMethodCode();
+?>
+<ul id="payment_form_<?php echo $code; ?>" style="display:none; list-style:none; padding:0; margin:0;">
+    <li>
+        <div id="mp-boleto-form" class="mp-payment-form">
+            <p><?php echo $this->__('O boleto será gerado após a confirmação do pedido.'); ?></p>
+            <p style="color:#666; font-size:0.9em;"><?php echo $this->__('O prazo de vencimento é de 3 dias úteis. Os dados de endereço serão utilizados conforme cadastrado.'); ?></p>
+        </div>
+    </li>
+</ul>
