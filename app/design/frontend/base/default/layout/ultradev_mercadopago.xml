@@ -1,57 +1,14 @@
 <?xml version="1.0"?>
-<layout>
-    <!-- Challenge 3DS — página isolada sem header/footer -->
-    <ultradev_mercadopago_threeds_challenge>
-        <update handle="page_empty"/>
+<layout version="0.1.0">
+
+    <ultradev_mercadopago_checkout_success>
         <reference name="root">
-            <block type="core/template"
-                   name="ultradev.mp.threeds.challenge"
-                   template="ultradev/mercadopago/threeds/challenge.phtml"/>
+            <action method="setTemplate"><template>page/1column.phtml</template></action>
         </reference>
-    </ultradev_mercadopago_threeds_challenge>
-
-    <!-- Página de sucesso — QR Pix ou link do Boleto -->
-    <checkout_onepage_success>
         <reference name="content">
-            <block type="core/template"
-                   name="ultradev.mp.success"
-                   template="ultradev/mercadopago/success/index.phtml"/>
+            <block type="core/template" name="mp.success"
+                   template="ultradev/mercadopago/checkout/success.phtml"/>
         </reference>
-    </checkout_onepage_success>
+    </ultradev_mercadopago_checkout_success>
 
-    <!-- Onepage padrão -->
-    <checkout_onepage_index>
-        <reference name="head">
-            <action method="addCss">
-                <stylesheet>ultradev/mercadopago/css/checkout.css</stylesheet>
-            </action>
-            <action method="addJs">
-                <script>ultradev/mercadopago/js/mp-checkout.js</script>
-            </action>
-        </reference>
-    </checkout_onepage_index>
-
-    <!-- Moip One Step Checkout -->
-    <onestepcheckout_index_index>
-        <reference name="head">
-            <action method="addCss">
-                <stylesheet>ultradev/mercadopago/css/checkout.css</stylesheet>
-            </action>
-            <action method="addJs">
-                <script>ultradev/mercadopago/js/mp-checkout.js</script>
-            </action>
-        </reference>
-    </onestepcheckout_index_index>
-
-    <!-- UltraDev Checkout (futuro) -->
-    <ultradev_checkout_index_index>
-        <reference name="head">
-            <action method="addCss">
-                <stylesheet>ultradev/mercadopago/css/checkout.css</stylesheet>
-            </action>
-            <action method="addJs">
-                <script>ultradev/mercadopago/js/mp-checkout.js</script>
-            </action>
-        </reference>
-    </ultradev_checkout_index_index>
 </layout>
