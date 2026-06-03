@@ -1,20 +1,5 @@
 <?php /** @var Mage_Payment_Block_Form $this */ ?>
 <div id="mp-pix-form" class="mp-payment-form">
-
-    <p><?php echo $this->__('Após confirmar o pedido, você receberá o QR Code e o código Pix para pagamento.'); ?></p>
-
-    <div class="mp-form-row">
-        <label for="mp_pix_doc_type"><?php echo $this->__('Tipo de documento'); ?></label>
-        <select id="mp_pix_doc_type" name="payment[mp_doc_type]">
-            <option value="CPF">CPF</option>
-            <option value="CNPJ">CNPJ</option>
-        </select>
-    </div>
-
-    <div class="mp-form-row">
-        <label for="mp_pix_doc_number"><?php echo $this->__('Número do documento'); ?></label>
-        <input type="text" id="mp_pix_doc_number" name="payment[mp_doc_number]"
-               placeholder="000.000.000-00" maxlength="18"/>
-    </div>
-
+    <p><?php echo $this->__('Após confirmar o pedido, você receberá o QR Code e o código Pix para efetuar o pagamento.'); ?></p>
+    <p style="color:#666; font-size:0.9em;"><?php echo $this->__('O Pix expira em 30 minutos após a geração.'); ?></p>
 </div>
