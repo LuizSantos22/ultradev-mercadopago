@@ -2,8 +2,6 @@
 /** @var UltraDev_MercadoPago_Block_Form_Cc $this */
 $publicKey = $this->getPublicKey();
 ?>
-<script src="https://sdk.mercadopago.com/js/v2"></script>
-
 <div id="mp-cc-form" class="mp-payment-form" data-public-key="<?php echo $this->htmlEscape($publicKey); ?>">
 
     <div id="cardPaymentBrick_container"></div>
