@@ -1,0 +1,21 @@
+<?php
+/** @var UltraDev_MercadoPago_Block_Info_Boleto $this */
+$info      = $this->getInfo();
+$ticketUrl = $info->getAdditionalInformation('mp_ticket_url');
+$digitable = $info->getAdditionalInformation('mp_digitable_line');
+?>
+<div class="mp-boleto-info">
+    <?php if ($ticketUrl): ?>
+        <p>
+            <a href="<?php echo $this->htmlEscape($ticketUrl); ?>" target="_blank" class="button">
+                <?php echo $this->__('Visualizar / Imprimir Boleto'); ?>
+            </a>
+        </p>
+    <?php endif; ?>
+
+    <?php if ($digitable): ?>
+        <p><strong><?php echo $this->__('Linha Digitável'); ?></strong></p>
+        <input type="text" value="<?php echo $this->htmlEscape($digitable); ?>" readonly
+               onclick="this.select();" style="width:100%;"/>
+    <?php endif; ?>
+</div>
