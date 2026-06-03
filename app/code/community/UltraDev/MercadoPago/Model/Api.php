@@ -46,7 +46,7 @@ class UltraDev_MercadoPago_Model_Api
 
         if ($err) {
             Mage::log('[MP] cURL error: ' . $err, Zend_Log::ERR, 'ultradev_mercadopago.log');
-            throw new Mage_Payment_Model_Info_Exception(
+            Mage::throwException(
                 Mage::helper('ultradev_mercadopago')->__('Erro de comunicação com o Mercado Pago.')
             );
         }
@@ -86,8 +86,8 @@ class UltraDev_MercadoPago_Model_Api
             'payer'              => [
                 'email'          => $data['payer_email'],
                 'identification' => [
-                    'type'   => $data['doc_type']   ?? 'CPF',
-                    'number' => $data['doc_number']  ?? '',
+                    'type'   => $data['doc_type']  ?? 'CPF',
+                    'number' => $data['doc_number'] ?? '',
                 ],
             ],
             'transactions' => [
@@ -96,7 +96,7 @@ class UltraDev_MercadoPago_Model_Api
                         'amount'         => $h->formatAmount($data['amount']),
                         'payment_method' => [
                             'id'           => $data['payment_method_id'],
-                            'type'         => $data['payment_type_id'],  // credit_card | debit_card
+                            'type'         => $data['payment_type_id'],
                             'token'        => $data['token'],
                             'installments' => (int) $data['installments'],
                         ],
@@ -197,8 +197,8 @@ class UltraDev_MercadoPago_Model_Api
                 'first_name'     => $data['payer_first_name'] ?? '',
                 'last_name'      => $data['payer_last_name']  ?? '',
                 'identification' => [
-                    'type'   => $data['doc_type']   ?? 'CPF',
-                    'number' => $data['doc_number']  ?? '',
+                    'type'   => $data['doc_type']  ?? 'CPF',
+                    'number' => $data['doc_number'] ?? '',
                 ],
                 'address'        => [
                     'zip_code'      => $data['zip_code'],
