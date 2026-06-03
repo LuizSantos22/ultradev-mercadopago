@@ -1,42 +1,5 @@
 <?php /** @var Mage_Payment_Block_Form $this */ ?>
 <div id="mp-boleto-form" class="mp-payment-form">
-
-    <p><?php echo $this->__('Preencha seus dados para emissão do boleto.'); ?></p>
-
-    <div class="mp-form-row">
-        <label for="mp_boleto_doc_type"><?php echo $this->__('Tipo de documento'); ?></label>
-        <select id="mp_boleto_doc_type" name="payment[mp_doc_type]">
-            <option value="CPF">CPF</option>
-            <option value="CNPJ">CNPJ</option>
-        </select>
-    </div>
-    <div class="mp-form-row">
-        <label for="mp_boleto_doc_number"><?php echo $this->__('CPF/CNPJ'); ?></label>
-        <input type="text" id="mp_boleto_doc_number" name="payment[mp_doc_number]" maxlength="18"/>
-    </div>
-    <div class="mp-form-row">
-        <label for="mp_boleto_zip"><?php echo $this->__('CEP'); ?></label>
-        <input type="text" id="mp_boleto_zip" name="payment[mp_zip_code]" maxlength="9"/>
-    </div>
-    <div class="mp-form-row">
-        <label for="mp_boleto_street"><?php echo $this->__('Rua'); ?></label>
-        <input type="text" id="mp_boleto_street" name="payment[mp_street_name]"/>
-    </div>
-    <div class="mp-form-row">
-        <label for="mp_boleto_number"><?php echo $this->__('Número'); ?></label>
-        <input type="text" id="mp_boleto_number" name="payment[mp_street_number]" maxlength="10"/>
-    </div>
-    <div class="mp-form-row">
-        <label for="mp_boleto_neighborhood"><?php echo $this->__('Bairro'); ?></label>
-        <input type="text" id="mp_boleto_neighborhood" name="payment[mp_neighborhood]"/>
-    </div>
-    <div class="mp-form-row">
-        <label for="mp_boleto_city"><?php echo $this->__('Cidade'); ?></label>
-        <input type="text" id="mp_boleto_city" name="payment[mp_city]"/>
-    </div>
-    <div class="mp-form-row">
-        <label for="mp_boleto_state"><?php echo $this->__('Estado (UF)'); ?></label>
-        <input type="text" id="mp_boleto_state" name="payment[mp_state]" maxlength="2" placeholder="SP"/>
-    </div>
-
+    <p><?php echo $this->__('O boleto será gerado após a confirmação do pedido.'); ?></p>
+    <p style="color:#666; font-size:0.9em;"><?php echo $this->__('O prazo de vencimento é de 3 dias úteis. Os dados de endereço serão utilizados conforme cadastrado.'); ?></p>
 </div>
