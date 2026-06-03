@@ -13,10 +13,8 @@ class UltraDev_MercadoPago_Model_Observer
 
         foreach ($methods as $method) {
             $collection = Mage::getModel('sales/order')->getCollection()
-                ->addFieldToFilter('state', Mage_Sales_Model_Order::STATE_PENDING_PAYMENT)
-                ->addFieldToFilter('method', $method); // join via payment
+                ->addFieldToFilter('state', Mage_Sales_Model_Order::STATE_PENDING_PAYMENT);
 
-            // Filtro correto via payment join
             $collection->getSelect()
                 ->join(
                     ['payment' => $collection->getTable('sales/order_payment')],
@@ -32,8 +30,8 @@ class UltraDev_MercadoPago_Model_Observer
 
     protected function _updateOrderFromMp(Mage_Sales_Model_Order $order): void
     {
-        $payment  = $order->getPayment();
-        $mpId     = $payment->getAdditionalInformation('mp_order_id');
+        $payment = $order->getPayment();
+        $mpId    = $payment->getAdditionalInformation('mp_order_id');
         if (!$mpId) {
             return;
         }
@@ -49,7 +47,7 @@ class UltraDev_MercadoPago_Model_Observer
             $payStatus    = $payBlock['status'] ?? '';
 
             if ($status === 'processed' && $payStatus === 'processed') {
-                $methodCode    = $payment->getMethod();
+                $methodCode     = $payment->getMethod();
                 $approvedStatus = Mage::getStoreConfig('payment/' . $methodCode . '/order_status') ?: 'processing';
 
                 $order->setState(
@@ -72,7 +70,11 @@ class UltraDev_MercadoPago_Model_Observer
                       ->save();
             }
         } catch (Throwable $e) {
-            Mage::log('[MP Observer] Erro ao atualizar pedido ' . $order->getIncrementId() . ': ' . $e->getMessage(), Zend_Log::ERR, 'ultradev_mercadopago.log');
+            Mage::log(
+                '[MP Observer] Erro ao atualizar pedido ' . $order->getIncrementId() . ': ' . $e->getMessage(),
+                Zend_Log::ERR,
+                'ultradev_mercadopago.log'
+            );
         }
     }
 }
