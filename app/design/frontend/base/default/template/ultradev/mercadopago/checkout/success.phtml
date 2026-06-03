@@ -1,0 +1,99 @@
+<?php
+/**
+ * Página de sucesso pós-pagamento – Pix e Boleto
+ *
+ * Dados disponíveis via Mage::registry():
+ *   mp_payment_method => string (código do método)
+ *   mp_payment_info   => array  (additional_information do pagamento)
+ */
+$method = Mage::registry('mp_payment_method');
+$info   = Mage::registry('mp_payment_info') ?: [];
+?>
+<div class="page-title">
+    <h1><?php echo $this->__('Pedido realizado com sucesso!'); ?></h1>
+</div>
+
+<?php if ($method === 'ultradev_mercadopago_pix'): ?>
+
+    <div class="mp-success-pix">
+        <p><?php echo $this->__('Escaneie o QR Code abaixo ou copie o código Pix para efetuar o pagamento.'); ?></p>
+
+        <?php if (!empty($info['mp_qr_code_base64'])): ?>
+            <img src="data:image/jpeg;base64,<?php echo $this->htmlEscape($info['mp_qr_code_base64']); ?>"
+                 alt="QR Code Pix" style="max-width:220px; display:block; margin:16px auto;"/>
+        <?php endif; ?>
+
+        <?php if (!empty($info['mp_qr_code'])): ?>
+            <p><strong><?php echo $this->__('Pix Copia e Cola'); ?></strong></p>
+            <input type="text" id="mp-pix-code"
+                   value="<?php echo $this->htmlEscape($info['mp_qr_code']); ?>"
+                   readonly style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;"/>
+            <button type="button" onclick="
+                var el = document.getElementById('mp-pix-code');
+                el.select(); el.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+                this.innerText = '<?php echo $this->__('Copiado!'); ?>';
+            " style="margin-top:8px; padding:8px 14px;">
+                <?php echo $this->__('Copiar código'); ?>
+            </button>
+        <?php endif; ?>
+
+        <?php if (!empty($info['mp_ticket_url'])): ?>
+            <p style="margin-top:16px;">
+                <a href="<?php echo $this->htmlEscape($info['mp_ticket_url']); ?>" target="_blank" class="button">
+                    <?php echo $this->__('Abrir página de pagamento Pix'); ?>
+                </a>
+            </p>
+        <?php endif; ?>
+
+        <p style="margin-top:20px; color:#666;">
+            <?php echo $this->__('Após o pagamento, seu pedido será confirmado automaticamente.'); ?>
+        </p>
+    </div>
+
+<?php elseif ($method === 'ultradev_mercadopago_boleto'): ?>
+
+    <div class="mp-success-boleto">
+        <p><?php echo $this->__('Seu boleto foi gerado. Efetue o pagamento até a data de vencimento.'); ?></p>
+
+        <?php if (!empty($info['mp_ticket_url'])): ?>
+            <p>
+                <a href="<?php echo $this->htmlEscape($info['mp_ticket_url']); ?>" target="_blank" class="button">
+                    <?php echo $this->__('Visualizar / Imprimir Boleto'); ?>
+                </a>
+            </p>
+        <?php endif; ?>
+
+        <?php if (!empty($info['mp_digitable_line'])): ?>
+            <p><strong><?php echo $this->__('Linha Digitável'); ?></strong></p>
+            <input type="text" id="mp-boleto-line"
+                   value="<?php echo $this->htmlEscape($info['mp_digitable_line']); ?>"
+                   readonly style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;"/>
+            <button type="button" onclick="
+                var el = document.getElementById('mp-boleto-line');
+                el.select(); el.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+                this.innerText = '<?php echo $this->__('Copiado!'); ?>';
+            " style="margin-top:8px; padding:8px 14px;">
+                <?php echo $this->__('Copiar linha'); ?>
+            </button>
+        <?php endif; ?>
+
+        <p style="margin-top:20px; color:#666;">
+            <?php echo $this->__('Após a compensação do boleto (até 3 dias úteis), seu pedido será confirmado.'); ?>
+        </p>
+    </div>
+
+<?php else: ?>
+
+    <div class="mp-success-generic">
+        <p><?php echo $this->__('Seu pedido foi recebido e está sendo processado.'); ?></p>
+    </div>
+
+<?php endif; ?>
+
+<div style="margin-top:24px;">
+    <a href="<?php echo $this->getUrl('customer/account/index'); ?>"><?php echo $this->__('Minha conta'); ?></a>
+    &nbsp;|&nbsp;
+    <a href="<?php echo $this->getUrl(); ?>"><?php echo $this->__('Continuar comprando'); ?></a>
+</div>
