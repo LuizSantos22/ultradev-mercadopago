@@ -1,0 +1,7 @@
+<?php /** @var UltraDev_MercadoPago_Block_Info_Cc $this */ ?>
+<dl class="mp-payment-info">
+    <?php foreach ($this->getSpecificInformation() as $label => $value): ?>
+        <dt><?php echo $this->htmlEscape($label); ?></dt>
+        <dd><?php echo $this->htmlEscape($value); ?></dd>
+    <?php endforeach; ?>
+</dl>
