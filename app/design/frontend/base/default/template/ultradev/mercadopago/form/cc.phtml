@@ -1,60 +1,60 @@
 <?php
 /** @var UltraDev_MercadoPago_Block_Form_Cc $this */
 $publicKey = $this->getPublicKey();
+$code      = $this->getMethodCode();
 ?>
-<div id="mp-cc-form" class="mp-payment-form" data-public-key="<?php echo $this->htmlEscape($publicKey); ?>">
+<ul id="payment_form_<?php echo $code; ?>" style="display:none; list-style:none; padding:0; margin:0;">
+    <li>
+        <div id="mp-cc-form" class="mp-payment-form" data-public-key="<?php echo $this->htmlEscape($publicKey); ?>">
+            <div id="cardPaymentBrick_container"></div>
+            <input type="hidden" id="mp_token"             name="payment[mp_token]"             value=""/>
+            <input type="hidden" id="mp_payment_method_id" name="payment[mp_payment_method_id]" value=""/>
+            <input type="hidden" id="mp_payment_type_id"   name="payment[mp_payment_type_id]"   value=""/>
+            <input type="hidden" id="mp_installments"      name="payment[mp_installments]"      value="1"/>
+            <input type="hidden" id="mp_doc_type"          name="payment[mp_doc_type]"          value=""/>
+            <input type="hidden" id="mp_doc_number"        name="payment[mp_doc_number]"        value=""/>
+        </div>
+        <script>
+        (function() {
+            var publicKey = '<?php echo $this->jsQuoteEscape($publicKey); ?>';
 
-    <div id="cardPaymentBrick_container"></div>
-
-    <input type="hidden" id="mp_token"             name="payment[mp_token]"             value=""/>
-    <input type="hidden" id="mp_payment_method_id" name="payment[mp_payment_method_id]" value=""/>
-    <input type="hidden" id="mp_payment_type_id"   name="payment[mp_payment_type_id]"   value=""/>
-    <input type="hidden" id="mp_installments"      name="payment[mp_installments]"      value="1"/>
-    <input type="hidden" id="mp_doc_type"          name="payment[mp_doc_type]"           value=""/>
-    <input type="hidden" id="mp_doc_number"        name="payment[mp_doc_number]"         value=""/>
-
-</div>
-
-<script>
-(function() {
-    var publicKey = '<?php echo $this->jsQuoteEscape($publicKey); ?>';
-
-    function waitForMP(cb) {
-        if (typeof MercadoPago !== 'undefined') { cb(); }
-        else { setTimeout(function(){ waitForMP(cb); }, 200); }
-    }
-
-    function getAmount() {
-        var el = document.querySelector('[data-checkout="grandTotal"]');
-        if (el) { return parseFloat(el.value); }
-        if (window.checkoutConfig && window.checkoutConfig.quoteData) {
-            return parseFloat(window.checkoutConfig.quoteData.grand_total);
-        }
-        return 0;
-    }
-
-    waitForMP(function() {
-        var mp     = new MercadoPago(publicKey, { locale: 'pt-BR' });
-        var bricks = mp.bricks();
-
-        bricks.create('cardPayment', 'cardPaymentBrick_container', {
-            initialization: { amount: getAmount() },
-            callbacks: {
-                onReady: function() {},
-                onSubmit: function(formData, additionalData) {
-                    document.getElementById('mp_token').value             = formData.token;
-                    document.getElementById('mp_payment_method_id').value = formData.payment_method_id;
-                    document.getElementById('mp_payment_type_id').value   = additionalData.paymentTypeId || 'credit_card';
-                    document.getElementById('mp_installments').value      = formData.installments;
-                    document.getElementById('mp_doc_type').value          = formData.payer.identification.type;
-                    document.getElementById('mp_doc_number').value        = formData.payer.identification.number;
-
-                    if (typeof payment !== 'undefined') { payment.save(); }
-                    return Promise.resolve();
-                },
-                onError: function(err) { console.error('[MP Brick]', err); }
+            function waitForMP(cb) {
+                if (typeof MercadoPago !== 'undefined') { cb(); }
+                else { setTimeout(function(){ waitForMP(cb); }, 200); }
             }
-        });
-    });
-})();
-</script>
+
+            function getAmount() {
+                var el = document.querySelector('[data-checkout="grandTotal"]');
+                if (el) { return parseFloat(el.value); }
+                if (window.checkoutConfig && window.checkoutConfig.quoteData) {
+                    return parseFloat(window.checkoutConfig.quoteData.grand_total);
+                }
+                return 0;
+            }
+
+            waitForMP(function() {
+                var mp     = new MercadoPago(publicKey, { locale: 'pt-BR' });
+                var bricks = mp.bricks();
+
+                bricks.create('cardPayment', 'cardPaymentBrick_container', {
+                    initialization: { amount: getAmount() },
+                    callbacks: {
+                        onReady: function() {},
+                        onSubmit: function(formData, additionalData) {
+                            document.getElementById('mp_token').value             = formData.token;
+                            document.getElementById('mp_payment_method_id').value = formData.payment_method_id;
+                            document.getElementById('mp_payment_type_id').value   = additionalData.paymentTypeId || 'credit_card';
+                            document.getElementById('mp_installments').value      = formData.installments;
+                            document.getElementById('mp_doc_type').value          = formData.payer.identification.type;
+                            document.getElementById('mp_doc_number').value        = formData.payer.identification.number;
+                            if (typeof payment !== 'undefined') { payment.save(); }
+                            return Promise.resolve();
+                        },
+                        onError: function(err) { console.error('[MP Brick]', err); }
+                    }
+                });
+            });
+        })();
+        </script>
+    </li>
+</ul>
