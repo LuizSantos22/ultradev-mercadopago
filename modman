@@ -4,3 +4,4 @@ app/design/frontend/base/default/layout/ultradev_mercadopago.xml    app/design/f
 app/design/frontend/base/default/template/ultradev/mercadopago      app/design/frontend/base/default/template/ultradev/mercadopago
 app/design/adminhtml/default/default/template/ultradev/mercadopago  app/design/adminhtml/default/default/template/ultradev/mercadopago
 skin/frontend/base/default/ultradev/mercadopago                     skin/frontend/base/default/ultradev/mercadopago
+app/locale/pt_BR/UltraDev_MercadoPago.csv      app/locale/pt_BR/UltraDev_MercadoPago.csv
