@@ -1,6 +1,6 @@
 {
     "name": "ultradev/mercadopago-openmage",
-    "description": "MercadoPago checkout transparente (CC+3DS, Pix, Boleto, Checkout Pro) para OpenMage 20.x / PHP 8.2+",
+    "description": "MercadoPago checkout transparente (CC, Pix, Boleto) via Orders API para OpenMage 20.x / PHP 8.2+",
     "type": "magento-module",
     "version": "1.0.0",
     "license": "MIT",
@@ -20,5 +20,5 @@
         "magento-deploystrategy": "copy",
         "auto-append-gitignore": true
     },
-    "keywords": ["openmage", "magento", "mercadopago", "checkout", "3ds", "pix", "boleto", "ultradev"]
+    "keywords": ["openmage", "magento", "mercadopago", "orders-api", "pix", "boleto", "ultradev"]
 }
