@@ -17,43 +17,109 @@ $code      = $this->getMethodCode();
         <script>
         (function() {
             var publicKey = '<?php echo $this->jsQuoteEscape($publicKey); ?>';
-
-            function waitForMP(cb) {
-                if (typeof MercadoPago !== 'undefined') { cb(); }
-                else { setTimeout(function(){ waitForMP(cb); }, 200); }
-            }
+            var MP_SDK_URL = 'https://sdk.mercadopago.com/js/v2';
+            var MP_BRICK_INITIALIZED = false;
 
             function getAmount() {
-                var el = document.querySelector('[data-checkout="grandTotal"]');
-                if (el) { return parseFloat(el.value); }
-                if (window.checkoutConfig && window.checkoutConfig.quoteData) {
-                    return parseFloat(window.checkoutConfig.quoteData.grand_total);
+                // Tenta pegar o valor do grand-total do OSC da Moip
+                var el = document.querySelector('.grand-total .price');
+                if (el) {
+                    var val = el.textContent.replace(/[^\d,]/g, '').replace(',', '.');
+                    var num = parseFloat(val);
+                    if (!isNaN(num) && num > 0) return num;
                 }
+                // Fallback: input hidden do MP antigo
+                var inp = document.querySelector('input.total_amount');
+                if (inp && inp.value) return parseFloat(inp.value);
                 return 0;
             }
 
-            waitForMP(function() {
+            function initBrick() {
+                if (MP_BRICK_INITIALIZED) return;
+                if (typeof MercadoPago === 'undefined') return;
+                MP_BRICK_INITIALIZED = true;
+
+                var amount = getAmount();
+                if (amount <= 0) {
+                    console.warn('[MP Brick] Amount inválido:', amount);
+                    return;
+                }
+
                 var mp     = new MercadoPago(publicKey, { locale: 'pt-BR' });
                 var bricks = mp.bricks();
 
                 bricks.create('cardPayment', 'cardPaymentBrick_container', {
-                    initialization: { amount: getAmount() },
+                    initialization: { amount: amount },
                     callbacks: {
-                        onReady: function() {},
+                        onReady: function() {
+                            console.log('[MP Brick] Pronto, amount:', amount);
+                        },
                         onSubmit: function(formData, additionalData) {
                             document.getElementById('mp_token').value             = formData.token;
                             document.getElementById('mp_payment_method_id').value = formData.payment_method_id;
-                            document.getElementById('mp_payment_type_id').value   = additionalData.paymentTypeId || 'credit_card';
+                            document.getElementById('mp_payment_type_id').value   = (additionalData && additionalData.paymentTypeId) ? additionalData.paymentTypeId : 'credit_card';
                             document.getElementById('mp_installments').value      = formData.installments;
                             document.getElementById('mp_doc_type').value          = formData.payer.identification.type;
                             document.getElementById('mp_doc_number').value        = formData.payer.identification.number;
                             if (typeof payment !== 'undefined') { payment.save(); }
                             return Promise.resolve();
                         },
-                        onError: function(err) { console.error('[MP Brick]', err); }
+                        onError: function(err) {
+                            console.error('[MP Brick] Erro:', err);
+                        }
                     }
                 });
-            });
+            }
+
+            function loadSDKAndInit() {
+                // Evita carregar duplicado
+                if (document.querySelector('script[src*="sdk.mercadopago"]')) {
+                    waitForMP(initBrick);
+                    return;
+                }
+                var s = document.createElement('script');
+                s.src = MP_SDK_URL;
+                s.onload = function() { initBrick(); };
+                s.onerror = function() { console.error('[MP] Falha ao carregar SDK'); };
+                document.head.appendChild(s);
+            }
+
+            function waitForMP(cb) {
+                if (typeof MercadoPago !== 'undefined') { cb(); }
+                else { setTimeout(function(){ waitForMP(cb); }, 200); }
+            }
+
+            // Inicia quando o método CC for selecionado
+            // O OSC mostra o <ul> quando payment.switchMethod() é chamado
+            // Observamos a visibilidade do container para iniciar o Brick no momento certo
+            function watchVisibility() {
+                var container = document.getElementById('payment_form_<?php echo $code; ?>');
+                if (!container) { setTimeout(watchVisibility, 300); return; }
+
+                var observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(m) {
+                        if (m.type === 'attributes' && m.attributeName === 'style') {
+                            var visible = container.style.display !== 'none';
+                            if (visible && !MP_BRICK_INITIALIZED) {
+                                loadSDKAndInit();
+                            }
+                        }
+                    });
+                });
+
+                observer.observe(container, { attributes: true });
+
+                // Verifica estado inicial (caso já esteja visível)
+                if (container.style.display !== 'none') {
+                    loadSDKAndInit();
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', watchVisibility);
+            } else {
+                watchVisibility();
+            }
         })();
         </script>
     </li>
