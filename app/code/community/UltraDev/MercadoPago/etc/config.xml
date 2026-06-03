@@ -22,6 +22,13 @@
                 <class>UltraDev_MercadoPago_Helper</class>
             </ultradev_mercadopago>
         </helpers>
+        <resources>
+            <ultradev_mercadopago_setup>
+                <setup>
+                    <module>UltraDev_MercadoPago</module>
+                </setup>
+            </ultradev_mercadopago_setup>
+        </resources>
     </global>
 
     <frontend>
