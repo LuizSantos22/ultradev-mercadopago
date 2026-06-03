@@ -79,17 +79,27 @@ class UltraDev_MercadoPago_Model_Method_Cc extends Mage_Payment_Model_Method_Abs
         $payment->setTransactionId($mpOrderId)
                 ->setIsTransactionClosed($orderStatus === 'processed');
 
-        $info->setAdditionalInformation('mp_order_id',      $mpOrderId);
-        $info->setAdditionalInformation('mp_payment_id',    $payId);
-        $info->setAdditionalInformation('mp_order_status',  $orderStatus);
-        $info->setAdditionalInformation('mp_pay_status',    $payStatus);
+        $info->setAdditionalInformation('mp_order_id',     $mpOrderId);
+        $info->setAdditionalInformation('mp_payment_id',   $payId);
+        $info->setAdditionalInformation('mp_order_status', $orderStatus);
+        $info->setAdditionalInformation('mp_pay_status',   $payStatus);
 
         if ($orderStatus === 'processed' && $payStatus === 'processed') {
             $payment->setIsTransactionClosed(true);
             $statusAprovado = $this->getConfigData('order_status') ?: 'processing';
-            $order->setState(Mage_Sales_Model_Order::STATE_PROCESSING, $statusAprovado, 'Pagamento aprovado pelo Mercado Pago. Order: ' . $mpOrderId);
+            $order->setState(
+                Mage_Sales_Model_Order::STATE_PROCESSING,
+                $statusAprovado,
+                'Pagamento aprovado pelo Mercado Pago. Order: ' . $mpOrderId
+            );
         } elseif ($orderStatus === 'action_required') {
-            $order->setState(Mage_Sales_Model_Order::STATE_PENDING_PAYMENT, 'pending_payment', 'Aguardando confirmação do Mercado Pago. Order: ' . $mpOrderId);
+            // action_required pode indicar 3DS ou análise antifraude.
+            // Por ora o pedido fica em pending_payment e o cron/webhook atualiza quando processado.
+            $order->setState(
+                Mage_Sales_Model_Order::STATE_PENDING_PAYMENT,
+                'pending_payment',
+                'Pagamento em análise/autenticação no Mercado Pago. Order: ' . $mpOrderId
+            );
         } else {
             Mage::throwException($helper->__('Pagamento não aprovado. Status: %s', $orderStatus));
         }
