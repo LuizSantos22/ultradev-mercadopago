@@ -32,14 +32,12 @@ $code      = $this->getMethodCode();
             var MP_BRICK_INITIALIZED = false;
 
             function getAmount() {
-                // Tenta pegar o valor do grand-total do OSC da Moip
                 var el = document.querySelector('.grand-total .price');
                 if (el) {
                     var val = el.textContent.replace(/[^\d,]/g, '').replace(',', '.');
                     var num = parseFloat(val);
                     if (!isNaN(num) && num > 0) return num;
                 }
-                // Fallback: input hidden do MP antigo
                 var inp = document.querySelector('input.total_amount');
                 if (inp && inp.value) return parseFloat(inp.value);
                 return 0;
@@ -83,7 +81,6 @@ $code      = $this->getMethodCode();
             }
 
             function loadSDKAndInit() {
-                // Evita carregar duplicado
                 if (document.querySelector('script[src*="sdk.mercadopago"]')) {
                     waitForMP(initBrick);
                     return;
@@ -100,28 +97,28 @@ $code      = $this->getMethodCode();
                 else { setTimeout(function(){ waitForMP(cb); }, 200); }
             }
 
-            // Inicia quando o método CC for selecionado
-            // O OSC mostra o <ul> quando payment.switchMethod() é chamado
-            // Observamos a visibilidade do container para iniciar o Brick no momento certo
+            function isVisible(el) {
+                return el.style.display !== 'none' && !el.classList.contains('no-display');
+            }
+
             function watchVisibility() {
                 var container = document.getElementById('payment_form_<?php echo $code; ?>');
                 if (!container) { setTimeout(watchVisibility, 300); return; }
 
                 var observer = new MutationObserver(function(mutations) {
                     mutations.forEach(function(m) {
-                        if (m.type === 'attributes' && m.attributeName === 'style') {
-                            var visible = container.style.display !== 'none';
-                            if (visible && !MP_BRICK_INITIALIZED) {
+                        if (m.type === 'attributes' && (m.attributeName === 'style' || m.attributeName === 'class')) {
+                            if (isVisible(container) && !MP_BRICK_INITIALIZED) {
                                 loadSDKAndInit();
                             }
                         }
                     });
                 });
 
-                observer.observe(container, { attributes: true });
+                observer.observe(container, { attributes: true, attributeFilter: ['style', 'class'] });
 
-                // Verifica estado inicial (caso já esteja visível)
-                if (container.style.display !== 'none') {
+                // Verifica estado inicial
+                if (isVisible(container)) {
                     loadSDKAndInit();
                 }
             }
