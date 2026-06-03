@@ -18,61 +18,64 @@ class UltraDev_MercadoPago_Model_Method_Boleto extends Mage_Payment_Model_Method
         return !empty($token) && parent::isAvailable($quote);
     }
 
-    public function assignData($data)
-    {
-        if (!($data instanceof Varien_Object)) {
-            $data = new Varien_Object($data);
-        }
-        $info = $this->getInfoInstance();
-        $info->setAdditionalInformation('mp_doc_type',     $data->getMpDocType());
-        $info->setAdditionalInformation('mp_doc_number',   $data->getMpDocNumber());
-        $info->setAdditionalInformation('mp_zip_code',     $data->getMpZipCode());
-        $info->setAdditionalInformation('mp_street_name',  $data->getMpStreetName());
-        $info->setAdditionalInformation('mp_street_number',$data->getMpStreetNumber());
-        $info->setAdditionalInformation('mp_neighborhood', $data->getMpNeighborhood());
-        $info->setAdditionalInformation('mp_city',         $data->getMpCity());
-        $info->setAdditionalInformation('mp_state',        $data->getMpState());
-        return $this;
-    }
-
-    public function validate()
-    {
-        $info     = $this->getInfoInstance();
-        $required = ['mp_doc_number', 'mp_zip_code', 'mp_street_name', 'mp_street_number', 'mp_city', 'mp_state'];
-        foreach ($required as $field) {
-            if (empty($info->getAdditionalInformation($field))) {
-                Mage::throwException(
-                    Mage::helper('ultradev_mercadopago')->__('Preencha todos os dados obrigatórios para boleto.')
-                );
-            }
-        }
-        return $this;
-    }
-
     public function capture(Varien_Object $payment, $amount)
     {
-        $order      = $payment->getOrder();
-        $info       = $this->getInfoInstance();
-        $helper     = Mage::helper('ultradev_mercadopago');
-        $api        = Mage::getModel('ultradev_mercadopago/api');
+        $order   = $payment->getOrder();
+        $helper  = Mage::helper('ultradev_mercadopago');
+        $api     = Mage::getModel('ultradev_mercadopago/api');
         $expiration = $this->getConfigData('boleto_expiration') ?: 'P3D';
 
-        $billingAddress = $order->getBillingAddress();
+        $billing = $order->getBillingAddress();
+
+        // Endereço: linha 1 = rua, linha 2 = número (padrão OpenMage BR)
+        $street1 = $billing->getStreet(1) ?: '';
+        $street2 = $billing->getStreet(2) ?: '';
+        $street3 = $billing->getStreet(3) ?: ''; // bairro em alguns temas
+        $street4 = $billing->getStreet(4) ?: '';
+
+        // Heurística: se street2 for numérico, é número; senão pode ser complemento
+        $streetName   = $street1;
+        $streetNumber = '';
+        $neighborhood = '';
+
+        if (is_numeric(preg_replace('/\D/', '', $street2)) && !empty($street2)) {
+            $streetNumber = $street2;
+            $neighborhood = $street3 ?: $street4;
+        } else {
+            // tenta extrair número do final da rua
+            if (preg_match('/^(.*?)[,\s]+(\d+\w*)$/', $street1, $m)) {
+                $streetName   = trim($m[1]);
+                $streetNumber = trim($m[2]);
+            }
+            $neighborhood = $street2 ?: $street3;
+        }
+
+        // CPF/CNPJ: tenta taxvat do customer, fallback vazio
+        $taxvat    = $order->getCustomerTaxvat() ?: '';
+        $docNumber = preg_replace('/\D/', '', $taxvat);
+        $docType   = (strlen($docNumber) > 11) ? 'CNPJ' : 'CPF';
+
+        // CEP sem hífen
+        $postcode = preg_replace('/\D/', '', $billing->getPostcode() ?: '');
+
+        // Estado: sigla UF (2 letras)
+        $region = $billing->getRegionCode() ?: $billing->getRegion() ?: '';
+        $state  = strtoupper(substr(trim($region), 0, 2));
 
         $response = $api->createBoletoOrder([
             'amount'             => $amount,
             'external_reference' => $order->getIncrementId(),
             'payer_email'        => $order->getCustomerEmail(),
-            'payer_first_name'   => $billingAddress->getFirstname(),
-            'payer_last_name'    => $billingAddress->getLastname(),
-            'doc_type'           => $info->getAdditionalInformation('mp_doc_type')      ?: 'CPF',
-            'doc_number'         => $info->getAdditionalInformation('mp_doc_number'),
-            'zip_code'           => $info->getAdditionalInformation('mp_zip_code'),
-            'street_name'        => $info->getAdditionalInformation('mp_street_name'),
-            'street_number'      => $info->getAdditionalInformation('mp_street_number'),
-            'neighborhood'       => $info->getAdditionalInformation('mp_neighborhood')  ?: '',
-            'city'               => $info->getAdditionalInformation('mp_city'),
-            'state'              => $info->getAdditionalInformation('mp_state'),
+            'payer_first_name'   => $billing->getFirstname(),
+            'payer_last_name'    => $billing->getLastname(),
+            'doc_type'           => $docType,
+            'doc_number'         => $docNumber,
+            'zip_code'           => $postcode,
+            'street_name'        => $streetName,
+            'street_number'      => $streetNumber ?: 'S/N',
+            'neighborhood'       => $neighborhood,
+            'city'               => $billing->getCity(),
+            'state'              => $state,
             'expiration_time'    => $expiration,
         ]);
 
@@ -82,18 +85,19 @@ class UltraDev_MercadoPago_Model_Method_Boleto extends Mage_Payment_Model_Method
 
         $mpOrderId = $response['id'];
         $payBlock  = $response['transactions']['payments'][0] ?? [];
-        $payId     = $payBlock['id']       ?? '';
-        $pm        = $payBlock['payment_method'] ?? [];
-        $ticketUrl = $pm['ticket_url']      ?? '';
-        $barcode   = $pm['barcode_content'] ?? '';
-        $digitable = $pm['digitable_line']  ?? '';
+        $payId     = $payBlock['id']             ?? '';
+        $pm        = $payBlock['payment_method']  ?? [];
+        $ticketUrl = $pm['ticket_url']            ?? '';
+        $barcode   = $pm['barcode_content']       ?? '';
+        $digitable = $pm['digitable_line']        ?? '';
 
         $payment->setTransactionId($mpOrderId)->setIsTransactionClosed(false);
 
-        $info->setAdditionalInformation('mp_order_id',      $mpOrderId);
-        $info->setAdditionalInformation('mp_payment_id',    $payId);
-        $info->setAdditionalInformation('mp_ticket_url',    $ticketUrl);
-        $info->setAdditionalInformation('mp_barcode',       $barcode);
+        $info = $this->getInfoInstance();
+        $info->setAdditionalInformation('mp_order_id',       $mpOrderId);
+        $info->setAdditionalInformation('mp_payment_id',     $payId);
+        $info->setAdditionalInformation('mp_ticket_url',     $ticketUrl);
+        $info->setAdditionalInformation('mp_barcode',        $barcode);
         $info->setAdditionalInformation('mp_digitable_line', $digitable);
 
         $order->setState(
