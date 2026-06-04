@@ -151,8 +151,6 @@ $code      = $this->getMethodCode();
                     if (!result || !result[0]) return;
 
                     var item = result[0];
-
-                    // A API pode retornar erro como objeto dentro do array
                     if (item.code && item.message) {
                         console.warn('[MP] installments error:', item.message);
                         return;
@@ -160,7 +158,7 @@ $code      = $this->getMethodCode();
 
                     var costs = item.payer_costs || item.payerCosts || [];
                     if (!costs.length) {
-                        console.warn('[MP] payer_costs vazio:', JSON.stringify(item));
+                        console.warn('[MP] payer_costs vazio');
                         return;
                     }
 
@@ -172,9 +170,7 @@ $code      = $this->getMethodCode();
                     costs.forEach(function(p) {
                         var opt = document.createElement('option');
                         opt.value       = p.installments;
-                        opt.textContent = p.recommended_message || p.installmentRate
-                            ? (p.recommended_message || p.installments + 'x')
-                            : p.installments + 'x';
+                        opt.textContent = p.recommended_message || (p.installments + 'x');
                         sel.appendChild(opt);
                     });
 
@@ -183,7 +179,14 @@ $code      = $this->getMethodCode();
                         document.getElementById('mp_installments_val').value = this.value;
                     };
                   })
-                  .catch(function(e) { console.warn('[MP] getInstallments error:', e); });
+                  .catch(function(e) {
+                    console.warn('[MP] getInstallments error:', e);
+                    // Fallback: parcela única
+                    var sel = document.getElementById('mp_installments');
+                    var amt = getAmount();
+                    sel.innerHTML = '<option value="1">1x de R$' + amt.toFixed(2).replace('.', ',') + ' sem juros</option>';
+                    document.getElementById('mp_installments_val').value = '1';
+                  });
             }
 
             window.mpGenerateToken = function(cb) {
@@ -226,27 +229,32 @@ $code      = $this->getMethodCode();
             };
 
             function interceptSubmit() {
-                var btn = document.getElementById('checkout-onepage-buttom');
-                if (!btn) { setTimeout(interceptSubmit, 500); return; }
+                // Usa capture phase no document para rodar antes de qualquer handler do OSC
+                document.addEventListener('click', function(e) {
+                    var target = e.target;
+                    // Sobe na árvore DOM para encontrar o botão
+                    while (target && target !== document) {
+                        if (target.id === 'checkout-onepage-buttom') {
+                            var radio = document.getElementById('p_method_ultradev_mercadopago_cc');
+                            if (!radio || !radio.checked) return;
 
-                btn.addEventListener('click', function(e) {
-                    var radio = document.getElementById('p_method_ultradev_mercadopago_cc');
-                    if (!radio || !radio.checked) return;
+                            // Se token já existe, deixa passar normalmente
+                            if (document.getElementById('mp_token').value) return;
 
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
+                            e.stopPropagation();
 
-                    if (document.getElementById('mp_token').value) {
-                        if (typeof payment !== 'undefined') { payment.save(); }
-                        return;
-                    }
-
-                    window.mpGenerateToken(function(ok) {
-                        if (ok) {
-                            if (typeof payment !== 'undefined') { payment.save(); }
+                            window.mpGenerateToken(function(ok) {
+                                if (ok) {
+                                    if (typeof payment !== 'undefined') { payment.save(); }
+                                }
+                            });
+                            return;
                         }
-                    });
-                }, true);
+                        target = target.parentNode;
+                    }
+                }, true); // true = capture phase
             }
 
             loadSDK(function() {
