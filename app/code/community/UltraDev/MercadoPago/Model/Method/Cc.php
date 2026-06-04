@@ -85,6 +85,7 @@ class UltraDev_MercadoPago_Model_Method_Cc extends Mage_Payment_Model_Method_Abs
         $info->setAdditionalInformation('mp_pay_status',   $payStatus);
 
         if ($orderStatus === 'processed' && $payStatus === 'processed') {
+            // Pagamento aprovado imediatamente
             $payment->setIsTransactionClosed(true);
             $statusAprovado = $this->getConfigData('order_status') ?: 'processing';
             $order->setState(
@@ -92,15 +93,19 @@ class UltraDev_MercadoPago_Model_Method_Cc extends Mage_Payment_Model_Method_Abs
                 $statusAprovado,
                 'Pagamento aprovado pelo Mercado Pago. Order: ' . $mpOrderId
             );
-        } elseif ($orderStatus === 'action_required') {
-            // action_required pode indicar 3DS ou análise antifraude.
-            // Por ora o pedido fica em pending_payment e o cron/webhook atualiza quando processado.
+
+        } elseif (in_array($orderStatus, ['action_required', 'in_review', 'pending', 'authorized'])) {
+            // Pagamento em análise antifraude, 3DS ou processamento assíncrono.
+            // Pedido criado em pending_payment — webhook/cron atualiza quando confirmado.
+            $payment->setIsTransactionClosed(false);
             $order->setState(
                 Mage_Sales_Model_Order::STATE_PENDING_PAYMENT,
                 'pending_payment',
-                'Pagamento em análise/autenticação no Mercado Pago. Order: ' . $mpOrderId
+                'Pagamento em análise no Mercado Pago. Order: ' . $mpOrderId . ' / Status: ' . $orderStatus
             );
+
         } else {
+            // Recusado de fato: failed, cancelled, rejected
             Mage::throwException($helper->__('Pagamento não aprovado. Status: %s', $orderStatus));
         }
 
