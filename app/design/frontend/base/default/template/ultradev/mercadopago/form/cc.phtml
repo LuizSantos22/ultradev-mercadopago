@@ -142,28 +142,48 @@ $code      = $this->getMethodCode();
             function fetchInstallments(cardNumber) {
                 if (!mp) return;
                 var bin    = cardNumber.substring(0, 6);
-                var amount = getAmount();
-                if (amount <= 0) return;
+                var amount = parseFloat(getAmount());
+                if (!(amount > 0)) return;
 
                 mp.getInstallments({ bin: bin, amount: amount })
                   .then(function(result) {
+                    console.log('[MP] installments result:', JSON.stringify(result));
                     if (!result || !result[0]) return;
+
+                    var item = result[0];
+
+                    // A API pode retornar erro como objeto dentro do array
+                    if (item.code && item.message) {
+                        console.warn('[MP] installments error:', item.message);
+                        return;
+                    }
+
+                    var costs = item.payer_costs || item.payerCosts || [];
+                    if (!costs.length) {
+                        console.warn('[MP] payer_costs vazio:', JSON.stringify(item));
+                        return;
+                    }
+
                     var sel = document.getElementById('mp_installments');
-                    document.getElementById('mp_payment_method_id').value = result[0].payment_method_id;
-                    document.getElementById('mp_payment_type_id').value   = result[0].payment_type_id || 'credit_card';
+                    document.getElementById('mp_payment_method_id').value = item.payment_method_id || '';
+                    document.getElementById('mp_payment_type_id').value   = item.payment_type_id   || 'credit_card';
+
                     sel.innerHTML = '';
-                    result[0].payer_costs.forEach(function(p) {
+                    costs.forEach(function(p) {
                         var opt = document.createElement('option');
                         opt.value       = p.installments;
-                        opt.textContent = p.recommended_message || (p.installments + 'x');
+                        opt.textContent = p.recommended_message || p.installmentRate
+                            ? (p.recommended_message || p.installments + 'x')
+                            : p.installments + 'x';
                         sel.appendChild(opt);
                     });
+
                     document.getElementById('mp_installments_val').value = sel.value;
                     sel.onchange = function() {
                         document.getElementById('mp_installments_val').value = this.value;
                     };
                   })
-                  .catch(function(e) { console.warn('[MP] getInstallments:', e); });
+                  .catch(function(e) { console.warn('[MP] getInstallments error:', e); });
             }
 
             window.mpGenerateToken = function(cb) {
