@@ -2,7 +2,6 @@
 class UltraDev_MercadoPago_Helper_Data extends Mage_Core_Helper_Abstract
 {
     const API_BASE_URL = 'https://api.mercadopago.com';
-
     const XML_PATH_ACCESS_TOKEN         = 'payment/ultradev_mercadopago_cc/access_token';
     const XML_PATH_ACCESS_TOKEN_SANDBOX = 'payment/ultradev_mercadopago_cc/access_token_sandbox';
     const XML_PATH_PUBLIC_KEY           = 'payment/ultradev_mercadopago_cc/public_key';
@@ -19,7 +18,8 @@ class UltraDev_MercadoPago_Helper_Data extends Mage_Core_Helper_Abstract
         $path = $this->isSandbox()
             ? self::XML_PATH_ACCESS_TOKEN_SANDBOX
             : self::XML_PATH_ACCESS_TOKEN;
-        return (string) Mage::getStoreConfig($path);
+        $value = (string) Mage::getStoreConfig($path);
+        return (string) Mage::helper('core')->decrypt($value);
     }
 
     public function getPublicKey(): string
@@ -27,16 +27,15 @@ class UltraDev_MercadoPago_Helper_Data extends Mage_Core_Helper_Abstract
         $path = $this->isSandbox()
             ? self::XML_PATH_PUBLIC_KEY_SANDBOX
             : self::XML_PATH_PUBLIC_KEY;
-        return (string) Mage::getStoreConfig($path);
+        $value = (string) Mage::getStoreConfig($path);
+        return (string) Mage::helper('core')->decrypt($value);
     }
 
-    /** Valor monetário como string no formato exigido pela Orders API: "200.00" */
     public function formatAmount(float $amount): string
     {
         return number_format($amount, 2, '.', '');
     }
 
-    /** UUID v4 para o header X-Idempotency-Key (obrigatório na Orders API) */
     public function generateIdempotencyKey(): string
     {
         return sprintf(
