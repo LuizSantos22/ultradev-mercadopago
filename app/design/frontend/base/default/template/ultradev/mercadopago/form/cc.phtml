@@ -116,6 +116,18 @@ $code      = $this->getMethodCode();
                 return 0;
             }
 
+            function detectBrand(num) {
+                var n = num.replace(/\D/g, '');
+                if (/^4/.test(n))                        return 'visa';
+                if (/^5[1-5]/.test(n))                   return 'master';
+                if (/^3[47]/.test(n))                    return 'amex';
+                if (/^3(?:0[0-5]|[68])/.test(n))         return 'diners';
+                if (/^(?:606282|3841)/.test(n))          return 'hipercard';
+                if (/^6(?:011|5)/.test(n))               return 'elo';
+                if (/^(?:5067|4576|4011)/.test(n))       return 'elo';
+                return 'master';
+            }
+
             function bindCardNumber() {
                 var input = document.getElementById('mp_cardNumber');
                 if (!input) return;
@@ -153,17 +165,19 @@ $code      = $this->getMethodCode();
                     var item = result[0];
                     if (item.code && item.message) {
                         console.warn('[MP] installments error:', item.message);
+                        useFallback(cardNumber);
                         return;
                     }
 
                     var costs = item.payer_costs || item.payerCosts || [];
                     if (!costs.length) {
                         console.warn('[MP] payer_costs vazio');
+                        useFallback(cardNumber);
                         return;
                     }
 
                     var sel = document.getElementById('mp_installments');
-                    document.getElementById('mp_payment_method_id').value = item.payment_method_id || '';
+                    document.getElementById('mp_payment_method_id').value = item.payment_method_id || detectBrand(cardNumber);
                     document.getElementById('mp_payment_type_id').value   = item.payment_type_id   || 'credit_card';
 
                     sel.innerHTML = '';
@@ -181,11 +195,18 @@ $code      = $this->getMethodCode();
                   })
                   .catch(function(e) {
                     console.warn('[MP] getInstallments error:', e);
-                    var sel = document.getElementById('mp_installments');
-                    var amt = getAmount();
-                    sel.innerHTML = '<option value="1">1x de R$' + amt.toFixed(2).replace('.', ',') + ' sem juros</option>';
-                    document.getElementById('mp_installments_val').value = '1';
+                    useFallback(cardNumber);
                   });
+            }
+
+            function useFallback(cardNumber) {
+                var brand = detectBrand(cardNumber || document.getElementById('mp_cardNumber').value.replace(/\s/g, ''));
+                document.getElementById('mp_payment_method_id').value = brand;
+                document.getElementById('mp_payment_type_id').value   = 'credit_card';
+                var sel = document.getElementById('mp_installments');
+                var amt = getAmount();
+                sel.innerHTML = '<option value="1">1x de R$' + amt.toFixed(2).replace('.', ',') + ' sem juros</option>';
+                document.getElementById('mp_installments_val').value = '1';
             }
 
             window.mpGenerateToken = function(cb) {
@@ -198,6 +219,11 @@ $code      = $this->getMethodCode();
                 var doc   = document.getElementById('mp_docNumber').value;
                 var dtype = document.getElementById('mp_docType').value;
                 var inst  = document.getElementById('mp_installments').value;
+
+                // Garante que payment_method_id está preenchido
+                if (!document.getElementById('mp_payment_method_id').value) {
+                    useFallback(num);
+                }
 
                 var expClean = exp.replace(/\D/g, '');
                 var month    = expClean.substring(0, 2);
@@ -235,7 +261,6 @@ $code      = $this->getMethodCode();
                             var radio = document.getElementById('p_method_ultradev_mercadopago_cc');
                             if (!radio || !radio.checked) return;
 
-                            // Token já existe — deixa o clique passar normalmente
                             if (document.getElementById('mp_token').value) return;
 
                             e.preventDefault();
@@ -244,7 +269,6 @@ $code      = $this->getMethodCode();
 
                             window.mpGenerateToken(function(ok) {
                                 if (ok) {
-                                    // Redispara o clique nativo para manter contexto do OSC
                                     var btn = document.getElementById('checkout-onepage-buttom');
                                     var nativeClick = document.createEvent('MouseEvents');
                                     nativeClick.initMouseEvent('click', true, true, window,
