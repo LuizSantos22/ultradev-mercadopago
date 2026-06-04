@@ -1,6 +1,5 @@
 <?xml version="1.0"?>
 <layout version="0.1.0">
-
     <ultradev_mercadopago_checkout_success>
         <reference name="root">
             <action method="setTemplate"><template>page/1column.phtml</template></action>
@@ -10,17 +9,4 @@
                    template="ultradev/mercadopago/checkout/success.phtml"/>
         </reference>
     </ultradev_mercadopago_checkout_success>
-
-    <checkout_onepage_index>
-        <reference name="head">
-            <action method="addJs"><script>https://sdk.mercadopago.com/js/v2</script></action>
-        </reference>
-    </checkout_onepage_index>
-
-    <onestepcheckout_index_index>
-        <reference name="head">
-            <action method="addJs"><script>https://sdk.mercadopago.com/js/v2</script></action>
-        </reference>
-    </onestepcheckout_index_index>
-
 </layout>
