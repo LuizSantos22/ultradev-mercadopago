@@ -62,7 +62,6 @@ $code      = $this->getMethodCode();
 
             <div id="mp-cc-msg"></div>
 
-            <!-- Campos hidden enviados ao servidor -->
             <input type="hidden" id="mp_token"             name="payment[mp_token]"             value=""/>
             <input type="hidden" id="mp_payment_method_id" name="payment[mp_payment_method_id]" value=""/>
             <input type="hidden" id="mp_payment_type_id"   name="payment[mp_payment_type_id]"   value=""/>
@@ -76,7 +75,6 @@ $code      = $this->getMethodCode();
             var publicKey  = '<?php echo $this->jsQuoteEscape($publicKey); ?>';
             var MP_SDK_URL = 'https://sdk.mercadopago.com/js/v2';
             var mp         = null;
-            var sdkLoaded  = false;
 
             function showMsg(txt) {
                 var el = document.getElementById('mp-cc-msg');
@@ -105,6 +103,7 @@ $code      = $this->getMethodCode();
                 if (mp) return;
                 mp = new MercadoPago(publicKey, { locale: 'pt-BR' });
                 bindCardNumber();
+                bindExpiration();
             }
 
             function getAmount() {
@@ -121,17 +120,28 @@ $code      = $this->getMethodCode();
                 var input = document.getElementById('mp_cardNumber');
                 if (!input) return;
                 input.addEventListener('input', function() {
-                    // Formata o número
                     var v = this.value.replace(/\D/g, '').substring(0, 16);
                     this.value = v.replace(/(.{4})/g, '$1 ').trim();
-                    // Busca parcelas quando tem 6+ dígitos
                     if (v.length >= 6) { fetchInstallments(v); }
+                });
+            }
+
+            function bindExpiration() {
+                var input = document.getElementById('mp_cardExpiration');
+                if (!input) return;
+                input.addEventListener('input', function() {
+                    var v = this.value.replace(/\D/g, '');
+                    if (v.length >= 3) {
+                        this.value = v.substring(0, 2) + '/' + v.substring(2, 6);
+                    } else {
+                        this.value = v;
+                    }
                 });
             }
 
             function fetchInstallments(cardNumber) {
                 if (!mp) return;
-                var bin = cardNumber.substring(0, 6);
+                var bin    = cardNumber.substring(0, 6);
                 var amount = getAmount();
                 if (amount <= 0) return;
 
@@ -139,49 +149,47 @@ $code      = $this->getMethodCode();
                   .then(function(result) {
                     if (!result || !result[0]) return;
                     var sel = document.getElementById('mp_installments');
-                    var pmId = result[0].payment_method_id;
-                    document.getElementById('mp_payment_method_id').value = pmId;
+                    document.getElementById('mp_payment_method_id').value = result[0].payment_method_id;
                     document.getElementById('mp_payment_type_id').value   = result[0].payment_type_id || 'credit_card';
                     sel.innerHTML = '';
                     result[0].payer_costs.forEach(function(p) {
                         var opt = document.createElement('option');
-                        opt.value = p.installments;
+                        opt.value       = p.installments;
                         opt.textContent = p.recommended_message || (p.installments + 'x');
                         sel.appendChild(opt);
                     });
+                    document.getElementById('mp_installments_val').value = sel.value;
                     sel.onchange = function() {
                         document.getElementById('mp_installments_val').value = this.value;
                     };
-                    sel.dispatchEvent(new Event('change'));
                   })
                   .catch(function(e) { console.warn('[MP] getInstallments:', e); });
             }
 
-            // Chamado pelo botão Finalizar Pedido antes do payment.save()
             window.mpGenerateToken = function(cb) {
                 if (!mp) { cb(false, 'SDK não carregado'); return; }
 
-                var num  = document.getElementById('mp_cardNumber').value.replace(/\s/g, '');
-                var name = document.getElementById('mp_cardholderName').value;
-                var exp  = document.getElementById('mp_cardExpiration').value;
-                var cvv  = document.getElementById('mp_securityCode').value;
-                var doc  = document.getElementById('mp_docNumber').value;
-                var dtype= document.getElementById('mp_docType').value;
-                var inst = document.getElementById('mp_installments').value;
+                var num   = document.getElementById('mp_cardNumber').value.replace(/\s/g, '');
+                var name  = document.getElementById('mp_cardholderName').value;
+                var exp   = document.getElementById('mp_cardExpiration').value;
+                var cvv   = document.getElementById('mp_securityCode').value;
+                var doc   = document.getElementById('mp_docNumber').value;
+                var dtype = document.getElementById('mp_docType').value;
+                var inst  = document.getElementById('mp_installments').value;
 
-                var parts = exp.split('/');
-                var month = parts[0] ? parts[0].trim() : '';
-                var year  = parts[1] ? parts[1].trim() : '';
+                var expClean = exp.replace(/\D/g, '');
+                var month    = expClean.substring(0, 2);
+                var year     = expClean.substring(2);
 
                 showMsg('');
 
                 mp.createCardToken({
-                    cardNumber:      num,
-                    cardholderName:  name,
-                    cardExpirationMonth: month,
-                    cardExpirationYear:  year,
-                    securityCode:    cvv,
-                    identificationType:  dtype,
+                    cardNumber:           num,
+                    cardholderName:       name,
+                    cardExpirationMonth:  month,
+                    cardExpirationYear:   year,
+                    securityCode:         cvv,
+                    identificationType:   dtype,
                     identificationNumber: doc.replace(/\D/g, '')
                 }).then(function(token) {
                     document.getElementById('mp_token').value            = token.id;
@@ -197,26 +205,23 @@ $code      = $this->getMethodCode();
                 });
             };
 
-            // Intercepta o Finalizar Pedido do OSC
             function interceptSubmit() {
                 var btn = document.getElementById('checkout-onepage-buttom');
                 if (!btn) { setTimeout(interceptSubmit, 500); return; }
 
                 btn.addEventListener('click', function(e) {
-                    // Só intercepta se CC MP estiver selecionado
                     var radio = document.getElementById('p_method_ultradev_mercadopago_cc');
                     if (!radio || !radio.checked) return;
 
                     e.preventDefault();
                     e.stopImmediatePropagation();
 
-                    // Se token já existe, deixa passar
                     if (document.getElementById('mp_token').value) {
                         if (typeof payment !== 'undefined') { payment.save(); }
                         return;
                     }
 
-                    window.mpGenerateToken(function(ok, err) {
+                    window.mpGenerateToken(function(ok) {
                         if (ok) {
                             if (typeof payment !== 'undefined') { payment.save(); }
                         }
