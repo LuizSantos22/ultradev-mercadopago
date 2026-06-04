@@ -181,7 +181,6 @@ $code      = $this->getMethodCode();
                   })
                   .catch(function(e) {
                     console.warn('[MP] getInstallments error:', e);
-                    // Fallback: parcela única
                     var sel = document.getElementById('mp_installments');
                     var amt = getAmount();
                     sel.innerHTML = '<option value="1">1x de R$' + amt.toFixed(2).replace('.', ',') + ' sem juros</option>';
@@ -229,16 +228,14 @@ $code      = $this->getMethodCode();
             };
 
             function interceptSubmit() {
-                // Usa capture phase no document para rodar antes de qualquer handler do OSC
                 document.addEventListener('click', function(e) {
                     var target = e.target;
-                    // Sobe na árvore DOM para encontrar o botão
                     while (target && target !== document) {
                         if (target.id === 'checkout-onepage-buttom') {
                             var radio = document.getElementById('p_method_ultradev_mercadopago_cc');
                             if (!radio || !radio.checked) return;
 
-                            // Se token já existe, deixa passar normalmente
+                            // Token já existe — deixa o clique passar normalmente
                             if (document.getElementById('mp_token').value) return;
 
                             e.preventDefault();
@@ -247,14 +244,19 @@ $code      = $this->getMethodCode();
 
                             window.mpGenerateToken(function(ok) {
                                 if (ok) {
-                                    if (typeof payment !== 'undefined') { payment.save(); }
+                                    // Redispara o clique nativo para manter contexto do OSC
+                                    var btn = document.getElementById('checkout-onepage-buttom');
+                                    var nativeClick = document.createEvent('MouseEvents');
+                                    nativeClick.initMouseEvent('click', true, true, window,
+                                        0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                                    btn.dispatchEvent(nativeClick);
                                 }
                             });
                             return;
                         }
                         target = target.parentNode;
                     }
-                }, true); // true = capture phase
+                }, true);
             }
 
             loadSDK(function() {
