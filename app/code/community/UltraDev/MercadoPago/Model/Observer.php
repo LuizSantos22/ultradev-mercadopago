@@ -9,6 +9,7 @@ class UltraDev_MercadoPago_Model_Observer
         $methods = [
             'ultradev_mercadopago_pix',
             'ultradev_mercadopago_boleto',
+            'ultradev_mercadopago_cc',
         ];
 
         foreach ($methods as $method) {
@@ -57,12 +58,14 @@ class UltraDev_MercadoPago_Model_Observer
                 );
                 $order->save();
 
-                $invoice = $order->prepareInvoice();
-                $invoice->setRequestedCaptureCase(Mage_Sales_Model_Order_Invoice::CAPTURE_OFFLINE);
-                $invoice->register();
-                $invoice->save();
-                $order->addRelatedObject($invoice);
-                $order->save();
+                if (!$order->hasInvoices()) {
+                    $invoice = $order->prepareInvoice();
+                    $invoice->setRequestedCaptureCase(Mage_Sales_Model_Order_Invoice::CAPTURE_OFFLINE);
+                    $invoice->register();
+                    $invoice->save();
+                    $order->addRelatedObject($invoice);
+                    $order->save();
+                }
 
             } elseif (in_array($status, ['expired', 'cancelled'])) {
                 $order->cancel()
