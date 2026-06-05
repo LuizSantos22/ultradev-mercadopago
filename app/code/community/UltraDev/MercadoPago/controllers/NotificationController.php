@@ -1,9 +1,6 @@
 <?php
 class UltraDev_MercadoPago_NotificationController extends Mage_Core_Controller_Front_Action
 {
-    /**
-     * Webhook: POST /ultradev-mercadopago/notification/webhook
-     */
     public function webhookAction(): void
     {
         $raw  = file_get_contents('php://input');
@@ -11,7 +8,6 @@ class UltraDev_MercadoPago_NotificationController extends Mage_Core_Controller_F
 
         Mage::log('[MP Webhook] ' . $raw, Zend_Log::DEBUG, 'ultradev_mercadopago.log');
 
-        // Valida assinatura secreta do MP
         if (!$this->_validateSignature($raw)) {
             Mage::log('[MP Webhook] Assinatura inválida — requisição ignorada.', Zend_Log::WARN, 'ultradev_mercadopago.log');
             $this->getResponse()->setHttpResponseCode(401)->setBody('unauthorized');
@@ -21,42 +17,70 @@ class UltraDev_MercadoPago_NotificationController extends Mage_Core_Controller_F
         $topic = $data['type']       ?? $this->getRequest()->getParam('topic');
         $mpId  = $data['data']['id'] ?? $this->getRequest()->getParam('id');
 
-        if (!in_array($topic, ['order', 'payment']) || empty($mpId)) {
+        if (empty($mpId) || !in_array($topic, ['order', 'payment'])) {
             $this->getResponse()->setHttpResponseCode(200)->setBody('ignored');
             return;
         }
 
         try {
             /** @var UltraDev_MercadoPago_Model_Api $api */
-            $api      = Mage::getModel('ultradev_mercadopago/api');
-            $response = $api->getOrder($mpId);
+            $api = Mage::getModel('ultradev_mercadopago/api');
 
-            $extRef = $response['external_reference'] ?? '';
-            if (!$extRef) {
-                $this->getResponse()->setHttpResponseCode(200)->setBody('no_ref');
-                return;
+            // Notificação de pagamento individual — busca via /v1/payments
+            // e depois localiza a order pelo external_reference
+            if ($topic === 'payment') {
+                $payment  = $api->getPayment((string) $mpId);
+                $extRef   = $payment['external_reference'] ?? '';
+                $status   = $payment['status']             ?? '';
+                $detail   = $payment['status_detail']      ?? '';
+
+                if (!$extRef) {
+                    $this->getResponse()->setHttpResponseCode(200)->setBody('no_ref');
+                    return;
+                }
+
+                $order = Mage::getModel('sales/order')->loadByIncrementId($extRef);
+                if (!$order->getId()) {
+                    $this->getResponse()->setHttpResponseCode(200)->setBody('order_not_found');
+                    return;
+                }
+
+                $orderPayment = $order->getPayment();
+                $orderPayment->setAdditionalInformation('mp_pay_status', $status)->save();
+
+                // Pagamento aprovado via /v1/payments usa status 'approved'
+                $approved = ($status === 'approved');
+
+            } else {
+                // Notificação de order — busca via /v1/orders
+                $response  = $api->getOrder((string) $mpId);
+                $extRef    = $response['external_reference'] ?? '';
+                $status    = $response['status']             ?? '';
+                $detail    = $response['status_detail']      ?? '';
+                $payBlock  = $response['transactions']['payments'][0] ?? [];
+                $payStatus = $payBlock['status'] ?? '';
+
+                if (!$extRef) {
+                    $this->getResponse()->setHttpResponseCode(200)->setBody('no_ref');
+                    return;
+                }
+
+                $order = Mage::getModel('sales/order')->loadByIncrementId($extRef);
+                if (!$order->getId()) {
+                    $this->getResponse()->setHttpResponseCode(200)->setBody('order_not_found');
+                    return;
+                }
+
+                $orderPayment = $order->getPayment();
+                $orderPayment->setAdditionalInformation('mp_order_status', $status);
+                $orderPayment->setAdditionalInformation('mp_pay_status',   $payStatus);
+                $orderPayment->save();
+
+                $approved = ($status === 'processed' && $payStatus === 'processed');
             }
 
-            $order = Mage::getModel('sales/order')->loadByIncrementId($extRef);
-            if (!$order->getId()) {
-                $this->getResponse()->setHttpResponseCode(200)->setBody('order_not_found');
-                return;
-            }
-
-            $status    = $response['status']        ?? '';
-            $detail    = $response['status_detail'] ?? '';
-            $payBlock  = $response['transactions']['payments'][0] ?? [];
-            $payStatus = $payBlock['status'] ?? '';
-
-            $payment = $order->getPayment();
-            $payment->setAdditionalInformation('mp_order_status', $status);
-            $payment->setAdditionalInformation('mp_pay_status',   $payStatus);
-            $payment->save();
-
-            if ($status === 'processed' && $payStatus === 'processed'
-                && $order->getState() === Mage_Sales_Model_Order::STATE_PENDING_PAYMENT
-            ) {
-                $methodCode     = $payment->getMethod();
+            if ($approved && $order->getState() === Mage_Sales_Model_Order::STATE_PENDING_PAYMENT) {
+                $methodCode     = $order->getPayment()->getMethod();
                 $approvedStatus = Mage::getStoreConfig('payment/' . $methodCode . '/order_status') ?: 'processing';
 
                 $order->setState(
@@ -75,7 +99,7 @@ class UltraDev_MercadoPago_NotificationController extends Mage_Core_Controller_F
 
                 $order->save();
 
-            } elseif (in_array($status, ['expired', 'cancelled'])) {
+            } elseif (in_array($status, ['expired', 'cancelled', 'rejected'])) {
                 $order->cancel()
                       ->addStatusHistoryComment('Pagamento ' . $status . ' via webhook.')
                       ->save();
@@ -88,16 +112,10 @@ class UltraDev_MercadoPago_NotificationController extends Mage_Core_Controller_F
         $this->getResponse()->setHttpResponseCode(200)->setBody('ok');
     }
 
-    /**
-     * Valida o header x-signature enviado pelo Mercado Pago.
-     * Formato: ts=<timestamp>,v1=<hmac>
-     * HMAC-SHA256 de "id:<mpId>;request-id:<requestId>;ts:<ts>;" com a chave secreta.
-     */
     protected function _validateSignature(string $rawBody): bool
     {
         $secret = Mage::helper('ultradev_mercadopago')->getWebhookSecret();
 
-        // Se não há secret configurado, permite passar (modo permissivo)
         if (empty($secret)) {
             Mage::log('[MP Webhook] webhook_secret não configurado — validação ignorada.', Zend_Log::WARN, 'ultradev_mercadopago.log');
             return true;
@@ -108,7 +126,6 @@ class UltraDev_MercadoPago_NotificationController extends Mage_Core_Controller_F
             return false;
         }
 
-        // Extrai ts e v1 do header
         $ts = '';
         $v1 = '';
         foreach (explode(',', $header) as $part) {
@@ -121,12 +138,10 @@ class UltraDev_MercadoPago_NotificationController extends Mage_Core_Controller_F
             return false;
         }
 
-        // Extrai dataId e x-request-id
         $data      = json_decode($rawBody, true) ?? [];
         $dataId    = $data['data']['id'] ?? '';
         $requestId = $_SERVER['HTTP_X_REQUEST_ID'] ?? '';
 
-        // Monta a string de assinatura
         $manifest = '';
         if (!empty($dataId))    $manifest .= 'id:'         . $dataId    . ';';
         if (!empty($requestId)) $manifest .= 'request-id:' . $requestId . ';';
