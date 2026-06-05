@@ -42,14 +42,14 @@ $code      = $this->getMethodCode();
             <div class="mp-row">
                 <div class="mp-field-group">
                     <label><?php echo $this->__('Tipo de Documento'); ?></label>
-                    <select id="mp_docType">
+                    <select id="mp_docType" name="payment[mp_doc_type]">
                         <option value="CPF">CPF</option>
                         <option value="CNPJ">CNPJ</option>
                     </select>
                 </div>
                 <div class="mp-field-group">
                     <label><?php echo $this->__('CPF/CNPJ'); ?></label>
-                    <input type="text" id="mp_docNumber" maxlength="18" placeholder="000.000.000-00"/>
+                    <input type="text" id="mp_docNumber" name="payment[mp_doc_number]" maxlength="18" placeholder="000.000.000-00"/>
                 </div>
             </div>
 
@@ -66,8 +66,8 @@ $code      = $this->getMethodCode();
             <input type="hidden" id="mp_payment_method_id" name="payment[mp_payment_method_id]" value=""/>
             <input type="hidden" id="mp_payment_type_id"   name="payment[mp_payment_type_id]"   value=""/>
             <input type="hidden" id="mp_installments_val"  name="payment[mp_installments]"      value="1"/>
-            <input type="hidden" id="mp_doc_type_val"      name="payment[mp_doc_type]"          value=""/>
-            <input type="hidden" id="mp_doc_number_val"    name="payment[mp_doc_number]"        value=""/>
+            <input type="hidden" id="mp_doc_type_val"      value=""/>
+            <input type="hidden" id="mp_doc_number_val"    value=""/>
         </div>
 
         <script>
@@ -164,8 +164,6 @@ $code      = $this->getMethodCode();
                     if (!result || !result[0]) { useFallback(cardNumber); return; }
 
                     var item = result[0];
-
-                    // API retornou erro (ex: ambiente de teste)
                     if (item.code && item.message) {
                         console.warn('[MP] installments error:', item.message);
                         useFallback(cardNumber);
@@ -175,7 +173,7 @@ $code      = $this->getMethodCode();
                     var costs = item.payer_costs || item.payerCosts || [];
                     if (!costs.length) { useFallback(cardNumber); return; }
 
-                    var maxInst = <?php echo (int) $this->getConfigData('installments') ?: 12; ?>;
+                    var maxInst = <?php echo (int) ($this->getConfigData('installments') ?: 12); ?>;
 
                     var sel = document.getElementById('mp_installments');
                     document.getElementById('mp_payment_method_id').value = item.payment_method_id || detectBrand(cardNumber);
@@ -190,7 +188,6 @@ $code      = $this->getMethodCode();
                         sel.appendChild(opt);
                     });
 
-                    // Se nenhuma opção foi adicionada (maxInst muito baixo), usa fallback
                     if (!sel.options.length) { useFallback(cardNumber); return; }
 
                     document.getElementById('mp_installments_val').value = sel.value;
@@ -221,7 +218,7 @@ $code      = $this->getMethodCode();
                 var name  = document.getElementById('mp_cardholderName').value;
                 var exp   = document.getElementById('mp_cardExpiration').value;
                 var cvv   = document.getElementById('mp_securityCode').value;
-                var doc   = document.getElementById('mp_docNumber').value;
+                var doc   = document.getElementById('mp_docNumber').value.replace(/\D/g, '');
                 var dtype = document.getElementById('mp_docType').value;
                 var inst  = document.getElementById('mp_installments').value;
 
@@ -242,12 +239,13 @@ $code      = $this->getMethodCode();
                     cardExpirationYear:   year,
                     securityCode:         cvv,
                     identificationType:   dtype,
-                    identificationNumber: doc.replace(/\D/g, '')
+                    identificationNumber: doc
                 }).then(function(token) {
                     document.getElementById('mp_token').value            = token.id;
                     document.getElementById('mp_installments_val').value = inst;
-                    document.getElementById('mp_doc_type_val').value     = dtype;
-                    document.getElementById('mp_doc_number_val').value   = doc.replace(/\D/g, '');
+                    // Atualiza os campos com name para garantir envio correto
+                    document.getElementById('mp_docNumber').value = doc;
+                    document.getElementById('mp_docType').value   = dtype;
                     cb(true);
                 }).catch(function(err) {
                     console.error('[MP] createCardToken:', err);
