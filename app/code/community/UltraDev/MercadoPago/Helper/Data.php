@@ -7,6 +7,7 @@ class UltraDev_MercadoPago_Helper_Data extends Mage_Core_Helper_Abstract
     const XML_PATH_PUBLIC_KEY           = 'payment/ultradev_mercadopago_cc/public_key';
     const XML_PATH_PUBLIC_KEY_SANDBOX   = 'payment/ultradev_mercadopago_cc/public_key_sandbox';
     const XML_PATH_SANDBOX              = 'payment/ultradev_mercadopago_cc/sandbox';
+    const XML_PATH_WEBHOOK_SECRET       = 'payment/ultradev_mercadopago_cc/webhook_secret';
 
     public function isSandbox(): bool
     {
@@ -29,22 +30,19 @@ class UltraDev_MercadoPago_Helper_Data extends Mage_Core_Helper_Abstract
         return $this->_getDecryptedConfig($path);
     }
 
-    /**
-     * Retorna o valor de config, decriptando apenas se necessário.
-     * Valores encriptados pelo OpenMage têm formato base64 com padding '='.
-     * Valores em texto puro (ex: TEST-xxx) são retornados diretamente.
-     */
+    public function getWebhookSecret(): string
+    {
+        return $this->_getDecryptedConfig(self::XML_PATH_WEBHOOK_SECRET);
+    }
+
     protected function _getDecryptedConfig(string $path): string
     {
         $value = (string) Mage::getStoreConfig($path);
         if (empty($value)) {
             return '';
         }
-        // Tenta decriptar; se o resultado for válido (ASCII imprimível), usa.
-        // Caso contrário, retorna o valor original (já é texto puro).
         try {
             $decrypted = (string) Mage::helper('core')->decrypt($value);
-            // Verifica se o resultado é texto ASCII imprimível (token válido do MP)
             if ($decrypted !== '' && mb_detect_encoding($decrypted, 'ASCII', true) !== false
                 && preg_match('/^[\x20-\x7E]+$/', $decrypted)) {
                 return $decrypted;
