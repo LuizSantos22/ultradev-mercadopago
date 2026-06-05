@@ -57,6 +57,14 @@
                             <sort_order>70</sort_order>
                             <show_in_default>1</show_in_default><show_in_website>1</show_in_website><show_in_store>1</show_in_store>
                         </sandbox>
+                        <webhook_secret translate="label">
+                            <label>Assinatura Secreta do Webhook</label>
+                            <frontend_type>obscure</frontend_type>
+                            <backend_model>adminhtml/system_config_backend_encrypted</backend_model>
+                            <sort_order>75</sort_order>
+                            <show_in_default>1</show_in_default><show_in_website>1</show_in_website><show_in_store>0</show_in_store>
+                            <comment>Assinatura secreta gerada no painel do Mercado Pago (Webhooks)</comment>
+                        </webhook_secret>
                         <installments translate="label">
                             <label>Máximo de parcelas</label>
                             <frontend_type>select</frontend_type>
