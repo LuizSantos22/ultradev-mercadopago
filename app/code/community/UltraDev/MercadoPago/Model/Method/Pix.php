@@ -30,6 +30,7 @@ class UltraDev_MercadoPago_Model_Method_Pix extends Mage_Payment_Model_Method_Ab
             'external_reference' => $order->getIncrementId(),
             'payer_email'        => $order->getCustomerEmail(),
             'expiration_time'    => $expiration,
+            'order'              => $order,
         ]);
 
         if (empty($response['id'])) {
