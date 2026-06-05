@@ -49,7 +49,6 @@ class UltraDev_MercadoPago_Model_Method_Cc extends Mage_Payment_Model_Method_Abs
         $order  = $payment->getOrder();
         $info   = $this->getInfoInstance();
         $helper = Mage::helper('ultradev_mercadopago');
-        /** @var UltraDev_MercadoPago_Model_Api $api */
         $api    = Mage::getModel('ultradev_mercadopago/api');
 
         $data = [
@@ -62,6 +61,7 @@ class UltraDev_MercadoPago_Model_Method_Cc extends Mage_Payment_Model_Method_Abs
             'payment_method_id'  => $info->getAdditionalInformation('mp_payment_method_id'),
             'payment_type_id'    => $info->getAdditionalInformation('mp_payment_type_id') ?: 'credit_card',
             'installments'       => $info->getAdditionalInformation('mp_installments') ?: 1,
+            'order'              => $order,
         ];
 
         $response = $api->createCcOrder($data);
@@ -85,7 +85,6 @@ class UltraDev_MercadoPago_Model_Method_Cc extends Mage_Payment_Model_Method_Abs
         $info->setAdditionalInformation('mp_pay_status',   $payStatus);
 
         if ($orderStatus === 'processed' && $payStatus === 'processed') {
-            // Pagamento aprovado imediatamente
             $payment->setIsTransactionClosed(true);
             $statusAprovado = $this->getConfigData('order_status') ?: 'processing';
             $order->setState(
@@ -95,8 +94,6 @@ class UltraDev_MercadoPago_Model_Method_Cc extends Mage_Payment_Model_Method_Abs
             );
 
         } elseif (in_array($orderStatus, ['action_required', 'in_review', 'pending', 'authorized'])) {
-            // Pagamento em análise antifraude, 3DS ou processamento assíncrono.
-            // Pedido criado em pending_payment — webhook/cron atualiza quando confirmado.
             $payment->setIsTransactionClosed(false);
             $order->setState(
                 Mage_Sales_Model_Order::STATE_PENDING_PAYMENT,
@@ -105,7 +102,6 @@ class UltraDev_MercadoPago_Model_Method_Cc extends Mage_Payment_Model_Method_Abs
             );
 
         } else {
-            // Recusado de fato: failed, cancelled, rejected
             Mage::throwException($helper->__('Pagamento não aprovado. Status: %s', $orderStatus));
         }
 
