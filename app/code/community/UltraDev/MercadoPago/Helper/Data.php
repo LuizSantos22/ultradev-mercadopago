@@ -2,12 +2,14 @@
 class UltraDev_MercadoPago_Helper_Data extends Mage_Core_Helper_Abstract
 {
     const API_BASE_URL = 'https://api.mercadopago.com';
-    const XML_PATH_ACCESS_TOKEN         = 'payment/ultradev_mercadopago_cc/access_token';
-    const XML_PATH_ACCESS_TOKEN_SANDBOX = 'payment/ultradev_mercadopago_cc/access_token_sandbox';
-    const XML_PATH_PUBLIC_KEY           = 'payment/ultradev_mercadopago_cc/public_key';
-    const XML_PATH_PUBLIC_KEY_SANDBOX   = 'payment/ultradev_mercadopago_cc/public_key_sandbox';
-    const XML_PATH_SANDBOX              = 'payment/ultradev_mercadopago_cc/sandbox';
-    const XML_PATH_WEBHOOK_SECRET       = 'payment/ultradev_mercadopago_cc/webhook_secret';
+
+    // Configurações globais — path independente do método de pagamento
+    const XML_PATH_ACCESS_TOKEN         = 'payment/ultradev_mercadopago/access_token';
+    const XML_PATH_ACCESS_TOKEN_SANDBOX = 'payment/ultradev_mercadopago/access_token_sandbox';
+    const XML_PATH_PUBLIC_KEY           = 'payment/ultradev_mercadopago/public_key';
+    const XML_PATH_PUBLIC_KEY_SANDBOX   = 'payment/ultradev_mercadopago/public_key_sandbox';
+    const XML_PATH_SANDBOX              = 'payment/ultradev_mercadopago/sandbox';
+    const XML_PATH_WEBHOOK_SECRET       = 'payment/ultradev_mercadopago/webhook_secret';
 
     public function isSandbox(): bool
     {
