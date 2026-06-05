@@ -27,13 +27,11 @@ class UltraDev_MercadoPago_Model_Method_Boleto extends Mage_Payment_Model_Method
 
         $billing = $order->getBillingAddress();
 
-        // Endereço: linha 1 = rua, linha 2 = número (padrão OpenMage BR)
         $street1 = $billing->getStreet(1) ?: '';
         $street2 = $billing->getStreet(2) ?: '';
-        $street3 = $billing->getStreet(3) ?: ''; // bairro em alguns temas
+        $street3 = $billing->getStreet(3) ?: '';
         $street4 = $billing->getStreet(4) ?: '';
 
-        // Heurística: se street2 for numérico, é número; senão pode ser complemento
         $streetName   = $street1;
         $streetNumber = '';
         $neighborhood = '';
@@ -42,7 +40,6 @@ class UltraDev_MercadoPago_Model_Method_Boleto extends Mage_Payment_Model_Method
             $streetNumber = $street2;
             $neighborhood = $street3 ?: $street4;
         } else {
-            // tenta extrair número do final da rua
             if (preg_match('/^(.*?)[,\s]+(\d+\w*)$/', $street1, $m)) {
                 $streetName   = trim($m[1]);
                 $streetNumber = trim($m[2]);
@@ -50,15 +47,12 @@ class UltraDev_MercadoPago_Model_Method_Boleto extends Mage_Payment_Model_Method
             $neighborhood = $street2 ?: $street3;
         }
 
-        // CPF/CNPJ: tenta taxvat do customer, fallback vazio
         $taxvat    = $order->getCustomerTaxvat() ?: '';
         $docNumber = preg_replace('/\D/', '', $taxvat);
         $docType   = (strlen($docNumber) > 11) ? 'CNPJ' : 'CPF';
 
-        // CEP sem hífen
         $postcode = preg_replace('/\D/', '', $billing->getPostcode() ?: '');
 
-        // Estado: sigla UF (2 letras)
         $region = $billing->getRegionCode() ?: $billing->getRegion() ?: '';
         $state  = strtoupper(substr(trim($region), 0, 2));
 
@@ -77,6 +71,7 @@ class UltraDev_MercadoPago_Model_Method_Boleto extends Mage_Payment_Model_Method
             'city'               => $billing->getCity(),
             'state'              => $state,
             'expiration_time'    => $expiration,
+            'order'              => $order,
         ]);
 
         if (empty($response['id'])) {
