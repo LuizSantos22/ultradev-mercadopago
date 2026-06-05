@@ -105,28 +105,85 @@ $code      = $this->getMethodCode();
                 mp = new MercadoPago(publicKey, { locale: 'pt-BR' });
                 bindCardNumber();
                 bindExpiration();
+                bindDocMask();
             }
 
             function getAmount() {
-                var el = document.querySelector('.grand-total .price');
-                if (el) {
-                    var val = el.textContent.replace(/[^\d,]/g, '').replace(',', '.');
-                    var num = parseFloat(val);
-                    if (!isNaN(num) && num > 0) return num;
+                var selectors = [
+                    '.grand-total strong .price',
+                    '.grand-total .price',
+                    '#totals .price',
+                    '#view-table-prices tfoot .price',
+                    '.total-price .price',
+                    '.order-total .price'
+                ];
+                for (var i = 0; i < selectors.length; i++) {
+                    var el = document.querySelector(selectors[i]);
+                    if (el) {
+                        var val = el.textContent.replace(/[^\d,]/g, '').replace(',', '.');
+                        var num = parseFloat(val);
+                        if (!isNaN(num) && num > 0) return num;
+                    }
+                }
+                var els = document.querySelectorAll('#totals .price, .grand-total .price');
+                for (var j = els.length - 1; j >= 0; j--) {
+                    var v = els[j].textContent.replace(/[^\d,]/g, '').replace(',', '.');
+                    var n = parseFloat(v);
+                    if (!isNaN(n) && n > 0) return n;
                 }
                 return 0;
             }
 
             function detectBrand(num) {
                 var n = num.replace(/\D/g, '');
-                if (/^4/.test(n))                   return 'visa';
-                if (/^5[1-5]/.test(n))              return 'master';
-                if (/^3[47]/.test(n))               return 'amex';
-                if (/^3(?:0[0-5]|[68])/.test(n))    return 'diners';
-                if (/^(?:606282|3841)/.test(n))     return 'hipercard';
-                if (/^(?:5067|4576|4011)/.test(n))  return 'elo';
-                if (/^6(?:011|5)/.test(n))          return 'elo';
+                if (/^4/.test(n))                        return 'visa';
+                if (/^5[1-5]/.test(n))                   return 'master';
+                if (/^(222[1-9]|22[3-9]|2[3-6]|27[01]|2720)/.test(n)) return 'master';
+                if (/^3[47]/.test(n))                    return 'amex';
+                if (/^3(?:0[0-5]|[68])/.test(n))         return 'diners';
+                if (/^(?:606282|3841)/.test(n))          return 'hipercard';
+                if (/^(?:5067|4576|4011|6362)/.test(n))  return 'elo';
+                if (/^6(?:011|5)/.test(n))               return 'discover';
                 return 'master';
+            }
+
+            function maskCpf(v) {
+                v = v.replace(/\D/g, '').substring(0, 11);
+                if (v.length > 9) return v.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, '$1.$2.$3-$4');
+                if (v.length > 6) return v.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
+                if (v.length > 3) return v.replace(/(\d{3})(\d{0,3})/, '$1.$2');
+                return v;
+            }
+
+            function maskCnpj(v) {
+                v = v.replace(/\D/g, '').substring(0, 14);
+                if (v.length > 12) return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, '$1.$2.$3/$4-$5');
+                if (v.length > 8)  return v.replace(/(\d{2})(\d{3})(\d{3})(\d{0,4})/, '$1.$2.$3/$4');
+                if (v.length > 5)  return v.replace(/(\d{2})(\d{3})(\d{0,3})/, '$1.$2.$3');
+                if (v.length > 2)  return v.replace(/(\d{2})(\d{0,3})/, '$1.$2');
+                return v;
+            }
+
+            function bindDocMask() {
+                var input  = document.getElementById('mp_docNumber');
+                var select = document.getElementById('mp_docType');
+                if (!input || !select) return;
+
+                function applyMask() {
+                    var isCnpj = select.value === 'CNPJ';
+                    input.setAttribute('maxlength', isCnpj ? '18' : '14');
+                    input.setAttribute('placeholder', isCnpj ? '00.000.000/0000-00' : '000.000.000-00');
+                    var raw = input.value.replace(/\D/g, '');
+                    input.value = isCnpj ? maskCnpj(raw) : maskCpf(raw);
+                }
+
+                input.addEventListener('input', function() {
+                    var isCnpj = select.value === 'CNPJ';
+                    var raw    = this.value.replace(/\D/g, '');
+                    this.value = isCnpj ? maskCnpj(raw) : maskCpf(raw);
+                });
+
+                select.addEventListener('change', applyMask);
             }
 
             function bindCardNumber() {
@@ -152,11 +209,20 @@ $code      = $this->getMethodCode();
                 });
             }
 
-            function fetchInstallments(cardNumber) {
+            function fetchInstallments(cardNumber, attempt) {
                 if (!mp) return;
+                attempt = attempt || 1;
                 var bin    = cardNumber.substring(0, 6);
-                var amount = parseFloat(getAmount());
-                if (!(amount > 0)) return;
+                var amount = getAmount();
+
+                if (!(amount > 0)) {
+                    if (attempt <= 5) {
+                        setTimeout(function() { fetchInstallments(cardNumber, attempt + 1); }, 400);
+                    } else {
+                        useFallback(cardNumber);
+                    }
+                    return;
+                }
 
                 mp.getInstallments({ bin: bin, amount: amount })
                   .then(function(result) {
@@ -207,7 +273,8 @@ $code      = $this->getMethodCode();
                 document.getElementById('mp_payment_type_id').value   = 'credit_card';
                 var sel = document.getElementById('mp_installments');
                 var amt = getAmount();
-                sel.innerHTML = '<option value="1">1x de R$' + amt.toFixed(2).replace('.', ',') + ' sem juros</option>';
+                var amtFmt = amt > 0 ? 'R$' + amt.toFixed(2).replace('.', ',') : '?';
+                sel.innerHTML = '<option value="1">1x de ' + amtFmt + ' sem juros</option>';
                 document.getElementById('mp_installments_val').value = '1';
             }
 
@@ -243,9 +310,8 @@ $code      = $this->getMethodCode();
                 }).then(function(token) {
                     document.getElementById('mp_token').value            = token.id;
                     document.getElementById('mp_installments_val').value = inst;
-                    // Atualiza os campos com name para garantir envio correto
-                    document.getElementById('mp_docNumber').value = doc;
-                    document.getElementById('mp_docType').value   = dtype;
+                    document.getElementById('mp_docNumber').value        = doc;
+                    document.getElementById('mp_docType').value          = dtype;
                     cb(true);
                 }).catch(function(err) {
                     console.error('[MP] createCardToken:', err);
