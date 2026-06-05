@@ -73,6 +73,11 @@
 
     <default>
         <payment>
+            <!-- Configurações globais compartilhadas entre todos os métodos -->
+            <ultradev_mercadopago>
+                <sandbox>0</sandbox>
+            </ultradev_mercadopago>
+
             <ultradev_mercadopago_cc>
                 <active>0</active>
                 <model>ultradev_mercadopago/method_cc</model>
@@ -82,6 +87,7 @@
                 <allowspecific>0</allowspecific>
                 <sort_order>10</sort_order>
             </ultradev_mercadopago_cc>
+
             <ultradev_mercadopago_pix>
                 <active>0</active>
                 <model>ultradev_mercadopago/method_pix</model>
@@ -92,6 +98,7 @@
                 <allowspecific>0</allowspecific>
                 <sort_order>20</sort_order>
             </ultradev_mercadopago_pix>
+
             <ultradev_mercadopago_boleto>
                 <active>0</active>
                 <model>ultradev_mercadopago/method_boleto</model>
