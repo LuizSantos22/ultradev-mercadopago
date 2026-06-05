@@ -56,7 +56,7 @@ $code      = $this->getMethodCode();
             <div class="mp-field-group">
                 <label><?php echo $this->__('Parcelas'); ?></label>
                 <select id="mp_installments">
-                    <option value="1"><?php echo $this->__('Selecione após digitar o cartão'); ?></option>
+                    <option value="1"><?php echo $this->__('Aguardando número do cartão...'); ?></option>
                 </select>
             </div>
 
@@ -84,12 +84,13 @@ $code      = $this->getMethodCode();
             }
 
             function loadSDK(cb) {
+                if (window.__mpSDKLoaded) { waitForMP(cb); return; }
                 if (document.querySelector('script[src*="sdk.mercadopago"]')) {
                     waitForMP(cb); return;
                 }
                 var s = document.createElement('script');
                 s.src = MP_SDK_URL;
-                s.onload = function() { waitForMP(cb); };
+                s.onload = function() { window.__mpSDKLoaded = true; waitForMP(cb); };
                 s.onerror = function() { showMsg('Erro ao carregar SDK do Mercado Pago.'); };
                 document.head.appendChild(s);
             }
@@ -118,13 +119,13 @@ $code      = $this->getMethodCode();
 
             function detectBrand(num) {
                 var n = num.replace(/\D/g, '');
-                if (/^4/.test(n))                        return 'visa';
-                if (/^5[1-5]/.test(n))                   return 'master';
-                if (/^3[47]/.test(n))                    return 'amex';
-                if (/^3(?:0[0-5]|[68])/.test(n))         return 'diners';
-                if (/^(?:606282|3841)/.test(n))          return 'hipercard';
-                if (/^6(?:011|5)/.test(n))               return 'elo';
-                if (/^(?:5067|4576|4011)/.test(n))       return 'elo';
+                if (/^4/.test(n))                   return 'visa';
+                if (/^5[1-5]/.test(n))              return 'master';
+                if (/^3[47]/.test(n))               return 'amex';
+                if (/^3(?:0[0-5]|[68])/.test(n))    return 'diners';
+                if (/^(?:606282|3841)/.test(n))     return 'hipercard';
+                if (/^(?:5067|4576|4011)/.test(n))  return 'elo';
+                if (/^6(?:011|5)/.test(n))          return 'elo';
                 return 'master';
             }
 
@@ -160,9 +161,11 @@ $code      = $this->getMethodCode();
                 mp.getInstallments({ bin: bin, amount: amount })
                   .then(function(result) {
                     console.log('[MP] installments result:', JSON.stringify(result));
-                    if (!result || !result[0]) return;
+                    if (!result || !result[0]) { useFallback(cardNumber); return; }
 
                     var item = result[0];
+
+                    // API retornou erro (ex: ambiente de teste)
                     if (item.code && item.message) {
                         console.warn('[MP] installments error:', item.message);
                         useFallback(cardNumber);
@@ -170,11 +173,9 @@ $code      = $this->getMethodCode();
                     }
 
                     var costs = item.payer_costs || item.payerCosts || [];
-                    if (!costs.length) {
-                        console.warn('[MP] payer_costs vazio');
-                        useFallback(cardNumber);
-                        return;
-                    }
+                    if (!costs.length) { useFallback(cardNumber); return; }
+
+                    var maxInst = <?php echo (int) $this->getConfigData('installments') ?: 12; ?>;
 
                     var sel = document.getElementById('mp_installments');
                     document.getElementById('mp_payment_method_id').value = item.payment_method_id || detectBrand(cardNumber);
@@ -182,11 +183,15 @@ $code      = $this->getMethodCode();
 
                     sel.innerHTML = '';
                     costs.forEach(function(p) {
+                        if (p.installments > maxInst) return;
                         var opt = document.createElement('option');
                         opt.value       = p.installments;
                         opt.textContent = p.recommended_message || (p.installments + 'x');
                         sel.appendChild(opt);
                     });
+
+                    // Se nenhuma opção foi adicionada (maxInst muito baixo), usa fallback
+                    if (!sel.options.length) { useFallback(cardNumber); return; }
 
                     document.getElementById('mp_installments_val').value = sel.value;
                     sel.onchange = function() {
@@ -220,7 +225,6 @@ $code      = $this->getMethodCode();
                 var dtype = document.getElementById('mp_docType').value;
                 var inst  = document.getElementById('mp_installments').value;
 
-                // Garante que payment_method_id está preenchido
                 if (!document.getElementById('mp_payment_method_id').value) {
                     useFallback(num);
                 }
