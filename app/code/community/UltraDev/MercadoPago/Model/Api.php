@@ -11,9 +11,6 @@ class UltraDev_MercadoPago_Model_Api
         return Mage::helper('ultradev_mercadopago');
     }
 
-    /**
-     * Executa chamada HTTP via cURL
-     */
     protected function _request(string $method, string $path, array $body = [], string $idempotencyKey = ''): array
     {
         $helper = $this->_helper();
@@ -59,65 +56,32 @@ class UltraDev_MercadoPago_Model_Api
         return $data;
     }
 
-    /**
-     * Monta o array de items a partir dos itens do pedido.
-     * A Orders API exige: title, unit_price, quantity, unit_measure, total_amount.
-     */
     protected function _buildItems(Mage_Sales_Model_Order $order): array
     {
         $items = [];
 
         foreach ($order->getAllVisibleItems() as $item) {
-            $qty        = (int) $item->getQtyOrdered();
-            $unitPrice  = round((float) $item->getPrice(), 2);
-            $totalPrice = round($unitPrice * $qty, 2);
+            $qty       = (int) $item->getQtyOrdered();
+            $unitPrice = round((float) $item->getPrice(), 2);
 
             if ($unitPrice <= 0) {
-                $totalPrice = round((float) $item->getRowTotal(), 2);
-                $unitPrice  = $qty > 0 ? round($totalPrice / $qty, 2) : 0;
+                $unitPrice = $qty > 0 ? round((float) $item->getRowTotal() / $qty, 2) : 0;
             }
 
-            if ($totalPrice <= 0) {
+            if ($unitPrice <= 0 || $qty <= 0) {
                 continue;
             }
 
             $items[] = [
-                'title'        => mb_substr((string) $item->getName(), 0, 256),
-                'unit_price'   => number_format($unitPrice, 2, '.', ''),
-                'quantity'     => $qty,
-                'unit_measure' => 'unit',
-                'total_amount' => number_format($totalPrice, 2, '.', ''),
+                'title'      => mb_substr((string) $item->getName(), 0, 256),
+                'unit_price' => number_format($unitPrice, 2, '.', ''),
+                'quantity'   => $qty,
             ];
-        }
-
-        // Ajusta diferença de arredondamento/desconto global no último item
-        if (!empty($items)) {
-            $orderTotal = round((float) $order->getGrandTotal(), 2);
-            $itemsTotal = round(array_reduce($items, function ($carry, $i) {
-                return $carry + (float) $i['total_amount'];
-            }, 0.0), 2);
-
-            $diff = round($orderTotal - $itemsTotal, 2);
-            if ($diff != 0) {
-                $last     = count($items) - 1;
-                $newTotal = round((float) $items[$last]['total_amount'] + $diff, 2);
-                if ($newTotal > 0) {
-                    $qty = (int) $items[$last]['quantity'];
-                    $items[$last]['total_amount'] = number_format($newTotal, 2, '.', '');
-                    $items[$last]['unit_price']   = number_format(
-                        $qty > 0 ? round($newTotal / $qty, 2) : $newTotal,
-                        2, '.', ''
-                    );
-                }
-            }
         }
 
         return $items;
     }
 
-    /**
-     * Cria order de cartão de crédito via Orders API
-     */
     public function createCcOrder(array $data): array
     {
         $h = $this->_helper();
@@ -159,9 +123,6 @@ class UltraDev_MercadoPago_Model_Api
         return $this->_request('POST', '/v1/orders', $body);
     }
 
-    /**
-     * Cria order de Pix via Orders API
-     */
     public function createPixOrder(array $data): array
     {
         $h = $this->_helper();
@@ -201,9 +162,6 @@ class UltraDev_MercadoPago_Model_Api
         return $this->_request('POST', '/v1/orders', $body);
     }
 
-    /**
-     * Cria order de Boleto via Orders API
-     */
     public function createBoletoOrder(array $data): array
     {
         $h = $this->_helper();
@@ -257,19 +215,11 @@ class UltraDev_MercadoPago_Model_Api
         return $this->_request('POST', '/v1/orders', $body);
     }
 
-    /**
-     * Consulta order por ID
-     * GET /v1/orders/{id}
-     */
     public function getOrder(string $orderId): array
     {
         return $this->_request('GET', '/v1/orders/' . $orderId);
     }
 
-    /**
-     * Consulta pagamento individual por ID
-     * GET /v1/payments/{id}
-     */
     public function getPayment(string $paymentId): array
     {
         return $this->_request('GET', '/v1/payments/' . $paymentId);
