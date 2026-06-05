@@ -82,22 +82,42 @@ class UltraDev_MercadoPago_Model_Api
         return $items;
     }
 
+    /**
+     * Extrai first_name e last_name do billing address do pedido.
+     */
+    protected function _buildPayerName(Mage_Sales_Model_Order $order): array
+    {
+        $billing = $order->getBillingAddress();
+        return [
+            'first_name' => $billing->getFirstname() ?: '',
+            'last_name'  => $billing->getLastname()  ?: '',
+        ];
+    }
+
     public function createCcOrder(array $data): array
     {
         $h = $this->_helper();
+
+        $payer = [
+            'email'          => $data['payer_email'],
+            'identification' => [
+                'type'   => $data['doc_type']  ?? 'CPF',
+                'number' => $data['doc_number'] ?? '',
+            ],
+        ];
+
+        if (!empty($data['order'])) {
+            $name = $this->_buildPayerName($data['order']);
+            $payer['first_name'] = $name['first_name'];
+            $payer['last_name']  = $name['last_name'];
+        }
 
         $body = [
             'type'               => 'online',
             'processing_mode'    => 'automatic',
             'total_amount'       => $h->formatAmount($data['amount']),
             'external_reference' => $data['external_reference'],
-            'payer'              => [
-                'email'          => $data['payer_email'],
-                'identification' => [
-                    'type'   => $data['doc_type']  ?? 'CPF',
-                    'number' => $data['doc_number'] ?? '',
-                ],
-            ],
+            'payer'              => $payer,
             'transactions' => [
                 'payments' => [
                     [
@@ -139,14 +159,22 @@ class UltraDev_MercadoPago_Model_Api
             $payment['expiration_time'] = $data['expiration_time'];
         }
 
+        $payer = [
+            'email' => $data['payer_email'],
+        ];
+
+        if (!empty($data['order'])) {
+            $name = $this->_buildPayerName($data['order']);
+            $payer['first_name'] = $name['first_name'];
+            $payer['last_name']  = $name['last_name'];
+        }
+
         $body = [
             'type'               => 'online',
             'processing_mode'    => 'automatic',
             'total_amount'       => $h->formatAmount($data['amount']),
             'external_reference' => $data['external_reference'],
-            'payer'              => [
-                'email' => $data['payer_email'],
-            ],
+            'payer'              => $payer,
             'transactions' => [
                 'payments' => [$payment],
             ],
