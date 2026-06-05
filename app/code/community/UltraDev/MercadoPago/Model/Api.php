@@ -60,19 +60,63 @@ class UltraDev_MercadoPago_Model_Api
     }
 
     /**
+     * Monta o array de items a partir dos itens do pedido.
+     * A Orders API exige: title, unit_price, quantity, unit_measure, total_amount.
+     */
+    protected function _buildItems(Mage_Sales_Model_Order $order): array
+    {
+        $items = [];
+
+        foreach ($order->getAllVisibleItems() as $item) {
+            $qty        = (int) $item->getQtyOrdered();
+            $unitPrice  = round((float) $item->getPrice(), 2);
+            $totalPrice = round($unitPrice * $qty, 2);
+
+            if ($unitPrice <= 0) {
+                $totalPrice = round((float) $item->getRowTotal(), 2);
+                $unitPrice  = $qty > 0 ? round($totalPrice / $qty, 2) : 0;
+            }
+
+            if ($totalPrice <= 0) {
+                continue;
+            }
+
+            $items[] = [
+                'title'        => mb_substr((string) $item->getName(), 0, 256),
+                'unit_price'   => number_format($unitPrice, 2, '.', ''),
+                'quantity'     => $qty,
+                'unit_measure' => 'unit',
+                'total_amount' => number_format($totalPrice, 2, '.', ''),
+            ];
+        }
+
+        // Ajusta diferença de arredondamento/desconto global no último item
+        if (!empty($items)) {
+            $orderTotal = round((float) $order->getGrandTotal(), 2);
+            $itemsTotal = round(array_reduce($items, function ($carry, $i) {
+                return $carry + (float) $i['total_amount'];
+            }, 0.0), 2);
+
+            $diff = round($orderTotal - $itemsTotal, 2);
+            if ($diff != 0) {
+                $last     = count($items) - 1;
+                $newTotal = round((float) $items[$last]['total_amount'] + $diff, 2);
+                if ($newTotal > 0) {
+                    $qty = (int) $items[$last]['quantity'];
+                    $items[$last]['total_amount'] = number_format($newTotal, 2, '.', '');
+                    $items[$last]['unit_price']   = number_format(
+                        $qty > 0 ? round($newTotal / $qty, 2) : $newTotal,
+                        2, '.', ''
+                    );
+                }
+            }
+        }
+
+        return $items;
+    }
+
+    /**
      * Cria order de cartão de crédito via Orders API
-     *
-     * $data = [
-     *   'amount'             => float,
-     *   'external_reference' => string,
-     *   'payer_email'        => string,
-     *   'doc_type'           => string,   // ex: CPF
-     *   'doc_number'         => string,
-     *   'token'              => string,   // CardToken gerado pelo MercadoPago.js
-     *   'payment_method_id'  => string,   // bandeira: master, visa, elo...
-     *   'payment_type_id'    => string,   // credit_card | debit_card
-     *   'installments'       => int,
-     * ]
      */
     public function createCcOrder(array $data): array
     {
@@ -105,18 +149,18 @@ class UltraDev_MercadoPago_Model_Api
             ],
         ];
 
+        if (!empty($data['order'])) {
+            $items = $this->_buildItems($data['order']);
+            if (!empty($items)) {
+                $body['items'] = $items;
+            }
+        }
+
         return $this->_request('POST', '/v1/orders', $body);
     }
 
     /**
      * Cria order de Pix via Orders API
-     *
-     * $data = [
-     *   'amount'             => float,
-     *   'external_reference' => string,
-     *   'payer_email'        => string,
-     *   'expiration_time'    => string,  // ISO 8601, ex: PT30M
-     * ]
      */
     public function createPixOrder(array $data): array
     {
@@ -147,29 +191,18 @@ class UltraDev_MercadoPago_Model_Api
             ],
         ];
 
+        if (!empty($data['order'])) {
+            $items = $this->_buildItems($data['order']);
+            if (!empty($items)) {
+                $body['items'] = $items;
+            }
+        }
+
         return $this->_request('POST', '/v1/orders', $body);
     }
 
     /**
      * Cria order de Boleto via Orders API
-     * Endereço do pagador é obrigatório pela API.
-     *
-     * $data = [
-     *   'amount'             => float,
-     *   'external_reference' => string,
-     *   'payer_email'        => string,
-     *   'payer_first_name'   => string,
-     *   'payer_last_name'    => string,
-     *   'doc_type'           => string,
-     *   'doc_number'         => string,
-     *   'zip_code'           => string,
-     *   'street_name'        => string,
-     *   'street_number'      => string,
-     *   'neighborhood'       => string,
-     *   'city'               => string,
-     *   'state'              => string,  // ex: SP
-     *   'expiration_time'    => string,  // ISO 8601, ex: P3D
-     * ]
      */
     public function createBoletoOrder(array $data): array
     {
@@ -214,6 +247,13 @@ class UltraDev_MercadoPago_Model_Api
             ],
         ];
 
+        if (!empty($data['order'])) {
+            $items = $this->_buildItems($data['order']);
+            if (!empty($items)) {
+                $body['items'] = $items;
+            }
+        }
+
         return $this->_request('POST', '/v1/orders', $body);
     }
 
@@ -224,5 +264,14 @@ class UltraDev_MercadoPago_Model_Api
     public function getOrder(string $orderId): array
     {
         return $this->_request('GET', '/v1/orders/' . $orderId);
+    }
+
+    /**
+     * Consulta pagamento individual por ID
+     * GET /v1/payments/{id}
+     */
+    public function getPayment(string $paymentId): array
+    {
+        return $this->_request('GET', '/v1/payments/' . $paymentId);
     }
 }
