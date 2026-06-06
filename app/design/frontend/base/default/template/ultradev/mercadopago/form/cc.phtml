@@ -122,14 +122,14 @@ $code      = $this->getMethodCode();
                     if (el) {
                         var val = el.textContent.replace(/[^\d,]/g, '').replace(',', '.');
                         var num = parseFloat(val);
-                        if (!isNaN(num) && num > 0) return num;
+                        if (!isNaN(num) && num > 0) return parseFloat(num.toFixed(2));
                     }
                 }
                 var els = document.querySelectorAll('#totals .price, .grand-total .price');
                 for (var j = els.length - 1; j >= 0; j--) {
                     var v = els[j].textContent.replace(/[^\d,]/g, '').replace(',', '.');
                     var n = parseFloat(v);
-                    if (!isNaN(n) && n > 0) return n;
+                    if (!isNaN(n) && n > 0) return parseFloat(n.toFixed(2));
                 }
                 return 0;
             }
@@ -224,7 +224,7 @@ $code      = $this->getMethodCode();
                     return;
                 }
 
-                mp.getInstallments({ bin: bin, amount: amount })
+                mp.getInstallments({ bin: bin, amount: String(amount.toFixed(2)) })
                   .then(function(result) {
                     console.log('[MP] installments result:', JSON.stringify(result));
                     if (!result || !result[0]) { useFallback(cardNumber); return; }
