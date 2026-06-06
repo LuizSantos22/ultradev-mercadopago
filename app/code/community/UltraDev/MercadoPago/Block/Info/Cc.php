@@ -3,6 +3,7 @@ class UltraDev_MercadoPago_Block_Info_Cc extends Mage_Payment_Block_Info
 {
     protected $_statusLabels = [
         'processed'       => 'Aprovado',
+        'in_process'      => 'Em análise',
         'in_review'       => 'Em revisão',
         'pending'         => 'Pendente',
         'authorized'      => 'Autorizado',
@@ -31,9 +32,10 @@ class UltraDev_MercadoPago_Block_Info_Cc extends Mage_Payment_Block_Info
 
         $status = $info->getAdditionalInformation('mp_pay_status')
                 ?: $info->getAdditionalInformation('mp_order_status');
+
         if ($status) {
             $data[Mage::helper('ultradev_mercadopago')->__('Status do Pagamento')] =
-                $this->_statusLabels[$status] ?? ucfirst($status);
+                $this->_statusLabels[$status] ?? ucfirst(str_replace('_', ' ', $status));
         }
 
         if ($v = $info->getAdditionalInformation('mp_installments')) {
