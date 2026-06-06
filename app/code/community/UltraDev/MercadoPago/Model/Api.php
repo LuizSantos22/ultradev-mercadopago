@@ -57,31 +57,41 @@ class UltraDev_MercadoPago_Model_Api
     }
 
     protected function _buildItems(Mage_Sales_Model_Order $order): array
-    {
-        $items = [];
+{
+    $items = [];
 
-        foreach ($order->getAllVisibleItems() as $item) {
-            $qty       = (int) $item->getQtyOrdered();
-            $unitPrice = round((float) $item->getPrice(), 2);
+    foreach ($order->getAllVisibleItems() as $item) {
+        $qty       = (int) $item->getQtyOrdered();
+        $unitPrice = round((float) $item->getPrice(), 2);
 
-            if ($unitPrice <= 0) {
-                $unitPrice = $qty > 0 ? round((float) $item->getRowTotal() / $qty, 2) : 0;
-            }
-
-            if ($unitPrice <= 0 || $qty <= 0) {
-                continue;
-            }
-
-            $items[] = [
-                'title'      => mb_substr((string) $item->getName(), 0, 256),
-                'unit_price' => number_format($unitPrice, 2, '.', ''),
-                'quantity'   => $qty,
-            ];
+        if ($unitPrice <= 0) {
+            $unitPrice = $qty > 0 ? round((float) $item->getRowTotal() / $qty, 2) : 0;
         }
 
-        return $items;
+        if ($unitPrice <= 0 || $qty <= 0) {
+            continue;
+        }
+
+        $itemData = [
+            'title'      => mb_substr((string) $item->getName(), 0, 256),
+            'unit_price' => number_format($unitPrice, 2, '.', ''),
+            'quantity'   => $qty,
+        ];
+
+        // Thumbnail do produto
+        $product = $item->getProduct();
+        if ($product) {
+            $imageUrl = (string) Mage::helper('catalog/image')->init($product, 'thumbnail');
+            if (!empty($imageUrl)) {
+                $itemData['picture_url'] = $imageUrl;
+            }
+        }
+
+        $items[] = $itemData;
     }
 
+    return $items;
+}
     /**
      * Extrai first_name e last_name do billing address do pedido.
      */
